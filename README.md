@@ -25,6 +25,8 @@ For Neovim, something like this could replace the ad-hoc popup/floating
 windows many plugins use, giving us a consistent workflow: a single
 expandable buffer for all kinds of input and interactive tasks.
 
+![demo](https://github.com/simifalaye/minibuffer.nvim/blob/3ef45bdb71551dd74d2893efef19c7389324afdc/sample_file_picker.png)
+
 # Goal
 
 The goal of this plugin is to eventually put some form of
@@ -93,6 +95,8 @@ I have written a few usable examples for this interface for
 demonstration.
 
 ## Which-key integration
+
+![which-key-demo](https://github.com/simifalaye/minibuffer.nvim/blob/3ef45bdb71551dd74d2893efef19c7389324afdc/sample_wk_integration.png)
 
 ```lua
 local wk = require("which-key")
