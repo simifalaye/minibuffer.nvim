@@ -87,10 +87,20 @@ end)
 }
 ```
 
-## Examples
+# Examples
 
 I have written a few usable examples for this interface for
-demonstration:
+demonstration.
+
+## Which-key integration
+
+```lua
+local wk = require("which-key")
+wk.setup({})
+require("minibuffer.examples.which-key")()
+```
+
+## Custom Pickers
 
 ```lua
 vim.keymap.set("n", "<leader>.", require("minibuffer.examples.files"))
