@@ -28,10 +28,6 @@ local function format_fn(item)
   }
 end
 
-local function item_compare_fn(old, new)
-  return old.path == new.path
-end
-
 local function filter_fn(items, input)
   if input == "" then
     return items
@@ -58,7 +54,6 @@ return function(o)
     allow_shrink = false,
     max_height = 15,
     format_fn = format_fn,
-    item_compare_fn = item_compare_fn,
     filter_fn = filter_fn,
     on_select = function(selection)
       vim.cmd("edit " .. vim.fn.fnameescape(selection.path))

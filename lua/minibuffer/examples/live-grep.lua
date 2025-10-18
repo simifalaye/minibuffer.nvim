@@ -37,10 +37,6 @@ local function format_fn(item)
   }
 end
 
-local function item_compare_fn(old, new)
-  return old.file == new.file and old.line == new.line and old.text == new.text
-end
-
 -- Use rg's filtering entirely
 local function filter_fn(items, _)
   return items
@@ -121,7 +117,6 @@ return function(o)
     allow_shrink = false,
     max_height = 18,
     format_fn = format_fn,
-    item_compare_fn = item_compare_fn,
     filter_fn = filter_fn,
     on_select = function(selection)
       local function jump(item)

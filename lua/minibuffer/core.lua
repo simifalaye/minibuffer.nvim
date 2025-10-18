@@ -81,7 +81,7 @@ local state = {
 ------------------------------------------------------------
 
 ---@alias minibuffer.core.SelectFilterFn fun(items:any[], input:string): any[]
----@alias minibuffer.core.SelectCallback fun(selection:any|any[], idx:integer|integer[])
+---@alias minibuffer.core.SelectCallback fun(items:any[], idx:integer|integer[])
 ---@alias minibuffer.core.SelectStartCallback fun(buf: integer, session: minibuffer.core.SelectSession, keyset: minibuffer.util.Keyset)
 ---@alias minibuffer.core.AsyncSelectFetchFn fun(input:string, cb:fun(items:any[]))
 
@@ -89,7 +89,6 @@ local state = {
 ---@field prompt string
 ---@field items any[]
 ---@field format_fn minibuffer.core.FormatFn
----@field item_compare_fn minibuffer.core.ItemCompareFn
 ---@field filter_fn minibuffer.core.SelectFilterFn
 ---@field async_fetch minibuffer.core.AsyncSelectFetchFn|nil
 ---@field on_start minibuffer.core.SelectStartCallback|nil
@@ -119,7 +118,6 @@ M.SelectSession = SelectSession
 ---@field resumable boolean|nil
 ---@field prompt string|nil
 ---@field items any[]|nil
----@field item_compare_fn minibuffer.core.ItemCompareFn
 ---@field format_fn minibuffer.core.FormatFn
 ---@field filter_fn minibuffer.core.SelectFilterFn
 ---@field async_fetch minibuffer.core.AsyncSelectFetchFn|nil
@@ -141,7 +139,6 @@ function SelectSession.new(opts)
     resumable = opts.resumable == true,
     prompt = (opts.prompt or "Select:") .. " ",
     items = opts.items or {},
-    item_compare_fn = opts.item_compare_fn,
     format_fn = opts.format_fn,
     filter_fn = opts.filter_fn,
     async_fetch = opts.async_fetch,
@@ -392,34 +389,23 @@ function SelectSession:post_start()
   pcall(vim.api.nvim_feedkeys, self.input, "t", false)
 end
 
-function SelectSession:update_filter()
-  local function apply_items(new_items)
-    self.items = new_items or {}
-    self.filtered_items = self.filter_fn(self.items, self.input) or {}
-    if self.multi then
-      self.selected_indices = {}
-    end
-    if #self.filtered_items == 0 then
-      self.current_index = 0
-      self.scroll_offset = 0
-    else
-      -- Try to keep current_index stable relative to first item if comparable
-      local old_first = self.filtered_items[1]
-      if
-        old_first
-        and self.item_compare_fn
-        and self.item_compare_fn(old_first, self.filtered_items[1])
-      then
-        self.current_index =
-          math.max(1, math.min(self.current_index, #self.filtered_items))
-      else
-        self.current_index = 1
-        self.scroll_offset = 0
-      end
-    end
-    self.loading = false
+function SelectSession:apply_items(new_items)
+  self.items = new_items or {}
+  self.filtered_items = self.filter_fn(self.items, self.input) or {}
+  if self.multi then
+    self.selected_indices = {}
   end
+  if #self.filtered_items == 0 then
+    self.current_index = 0
+    self.scroll_offset = 0
+  else
+    self.current_index = 1
+    self.scroll_offset = 0
+  end
+  self.loading = false
+end
 
+function SelectSession:update_filter()
   if self.async_fetch then
     self.loading = true
     self._req_id = self._req_id + 1
@@ -429,18 +415,17 @@ function SelectSession:update_filter()
       if req_id ~= self._req_id then
         return
       end
-      apply_items(result)
+      self:apply_items(result)
       vim.schedule(function()
         self:render()
       end)
     end)
     if not ok then
       -- fallback: synchronous filter on existing items
-      apply_items(self.items)
+      self:apply_items(self.items)
     end
   else
     -- synchronous path
-    local old_item = self.filtered_items[1]
     self.filtered_items = self.filter_fn(self.items, self.input) or {}
     if self.multi then
       self.selected_indices = {}
@@ -449,17 +434,8 @@ function SelectSession:update_filter()
       self.current_index = 0
       self.scroll_offset = 0
     else
-      if
-        old_item
-        and self.item_compare_fn
-        and self.item_compare_fn(old_item, self.filtered_items[1])
-      then
-        self.current_index =
-          math.max(1, math.min(self.current_index, #self.filtered_items))
-      else
-        self.current_index = 1
-        self.scroll_offset = 0
-      end
+      self.current_index = 1
+      self.scroll_offset = 0
     end
   end
 end
@@ -481,8 +457,8 @@ function SelectSession:accept()
     idx = self.selected_indices
   else
     if self.current_index > 0 and self.current_index <= #self.filtered_items then
-      result = self.filtered_items[self.current_index]
-      idx = self.current_index
+      result = { self.filtered_items[self.current_index] }
+      idx = { self.current_index }
     else
       return
     end
@@ -596,7 +572,6 @@ end
 ---@field prompt string
 ---@field input string
 ---@field format_fn minibuffer.core.FormatFn
----@field item_compare_fn minibuffer.core.ItemCompareFn
 ---@field get_suggestions minibuffer.core.InputGetSuggestionsFn|nil
 ---@field async_get_suggestions minibuffer.core.AsyncInputSuggestionsFn|nil
 ---@field on_start minibuffer.core.InputStartCallback|nil
@@ -626,7 +601,6 @@ M.InputSession = InputSession
 ---@field prompt string|nil
 ---@field initial_text string|nil
 ---@field format_fn minibuffer.core.FormatFn
----@field item_compare_fn minibuffer.core.ItemCompareFn
 ---@field get_suggestions minibuffer.core.InputGetSuggestionsFn|nil
 ---@field async_get_suggestions minibuffer.core.AsyncInputSuggestionsFn|nil
 ---@field on_start minibuffer.core.InputStartCallback|nil
@@ -649,7 +623,6 @@ function InputSession.new(opts)
     prompt = opts.prompt or "Enter: ",
     input = opts.initial_text or "",
     format_fn = opts.format_fn,
-    item_compare_fn = opts.item_compare_fn,
     get_suggestions = opts.get_suggestions,
     async_get_suggestions = opts.async_get_suggestions,
     on_start = opts.on_start,
@@ -885,22 +858,13 @@ end
 function InputSession:refresh_suggestions()
   local function apply(list)
     list = list or {}
-    local old_first = self.suggestions[1]
     self.suggestions = list
     if #list == 0 then
       self.current_index = 0
       self.scroll_offset = 0
     else
-      if
-        old_first
-        and self.item_compare_fn
-        and self.item_compare_fn(old_first, self.suggestions[1])
-      then
-        self.current_index = math.max(1, math.min(self.current_index, #self.suggestions))
-      else
-        self.current_index = 1
-        self.scroll_offset = 0
-      end
+      self.current_index = 1
+      self.scroll_offset = 0
     end
     self.loading = false
   end
@@ -922,7 +886,6 @@ function InputSession:refresh_suggestions()
       apply({})
     end
   else
-    local old_item = self.suggestions[1]
     local fn_get = self.get_suggestions
     local list = {}
     if fn_get then
@@ -936,16 +899,8 @@ function InputSession:refresh_suggestions()
       self.current_index = 0
       self.scroll_offset = 0
     else
-      if
-        old_item
-        and self.item_compare_fn
-        and self.item_compare_fn(old_item, self.suggestions[1])
-      then
-        self.current_index = math.max(1, math.min(self.current_index, #self.suggestions))
-      else
-        self.current_index = 1
-        self.scroll_offset = 0
-      end
+      self.current_index = 1
+      self.scroll_offset = 0
     end
   end
 end
@@ -977,7 +932,10 @@ function InputSession:accept_suggestion()
     newi = self.input .. text
   end
 
-  local backspaces = string.rep(vim.api.nvim_replace_termcodes("<BS>", true, false, true), self.input:len() + 1)
+  local backspaces = string.rep(
+    vim.api.nvim_replace_termcodes("<BS>", true, false, true),
+    self.input:len() + 1
+  )
   self.input = newi
   vim.api.nvim_feedkeys(backspaces, "i", true)
   vim.api.nvim_feedkeys(self.input, "n", true)

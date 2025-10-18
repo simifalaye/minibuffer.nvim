@@ -4,6 +4,8 @@
 
 A **highly experimental** general purpose interactive interface for neovim.
 
+![demo](https://github.com/simifalaye/minibuffer.nvim/blob/f99ad3f1d416e7531271be15b51fd00fea5d5663/demo.mp4)
+
 **NOTE**:
 - This plugin is still under development
 - It depends on an experimental feature in neovim nightly (`vim._extui`)
@@ -12,20 +14,19 @@ This plugin provides an api for an optional unified interactive buffer
 interface. Instead of having one plugin open a floating popup for fuzzy
 file search, another showing a completion menu at the bottom, another
 drawing commandline completions above the status bar and yet another
-drawing a general purpose picker in a different location, we can have
-one place where interactive input can be shown that feels native to the
-editor and is predictable. This includes:
+drawing a general purpose picker in a different location, you can choose
+to have one place where interactive input can be shown that feels native
+to the editor and is predictable. This includes:
 - Running commands with completion.
 - Fuzzy finding files or buffers.
 - Searching text across a project.
 - Input prompts for LSP or Git actions.
 - Even interactive plugin UIs (think Telescope, fzf, etc).
+- Display timely content (think which-key.nvim or mini.pick)
 
 For Neovim, something like this could replace the ad-hoc popup/floating
 windows many plugins use, giving us a consistent workflow: a single
 expandable buffer for all kinds of input and interactive tasks.
-
-![demo](https://github.com/simifalaye/minibuffer.nvim/blob/3ef45bdb71551dd74d2893efef19c7389324afdc/sample_file_picker.png)
 
 # Goal
 
@@ -35,8 +36,7 @@ maintainers.
 
 Since this interface exists as plugin for now, it will require an
 integration layer with other plugins to use their backend. I have
-provided an example for the [which-key.nvim](https://github.com/folke/which-key.nvim) plugin
-found at `lua/minibuffer/examples/which-key.lua`.
+integration implementations in `lua/minibuffer/integrations`.
 
 # Prerequisites
 
@@ -94,16 +94,6 @@ end)
 I have written a few usable examples for this interface for
 demonstration.
 
-## Which-key integration
-
-![which-key-demo](https://github.com/simifalaye/minibuffer.nvim/blob/3ef45bdb71551dd74d2893efef19c7389324afdc/sample_wk_integration.png)
-
-```lua
-local wk = require("which-key")
-wk.setup({})
-require("minibuffer.examples.which-key")()
-```
-
 ## Custom Pickers
 
 ```lua
@@ -114,4 +104,49 @@ vim.keymap.set("n", "<leader>o", function()
   require("minibuffer.examples.oldfiles")({ cwd = vim.fn.getcwd() })
 end)
 vim.keymap.set("n", "<leader>O", require("minibuffer.examples.oldfiles"))
+```
+
+# Integrations with existing plugins
+
+These integrations are mostly for demonstration purposes as proper
+support will best happen inside each plugin themselves. Changes to each
+plugin repo could break the integration.
+
+## Which-key.nvim
+
+![which-key-integration](https://github.com/simifalaye/minibuffer.nvim/blob/f99ad3f1d416e7531271be15b51fd00fea5d5663/which-key-integration.png)
+
+```lua
+-- NOTE: call loading plugin
+local wk_mb = require("minibuffer.integrations.which-key")
+local wk_view = require("which-key.view")
+wk_view.show = wk_mb.show
+wk_view.hide = wk_mb.hide
+```
+
+## FFF.nvim
+
+![fff-integration](https://github.com/simifalaye/minibuffer.nvim/blob/f99ad3f1d416e7531271be15b51fd00fea5d5663/fff-integration.png)
+
+```lua
+-- NOTE: call loading plugin
+local picker_ui = require("fff.picker_ui")
+picker_ui.open = require("minibuffer.integrations.fff")
+```
+
+## mini-pick.nvim
+
+![mini-pick-integration](https://github.com/simifalaye/minibuffer.nvim/blob/f99ad3f1d416e7531271be15b51fd00fea5d5663/mini-pick-integration.png)
+
+**NOTE**:
+- Not tested with extra pickers found in mini-extra
+- `live-grep` does not work yet, feel free to use the live-grep picker
+from the examples
+
+```lua
+-- NOTE: call loading plugin
+local pick_mb = require("minibuffer.integrations.mini-pick")
+pick.is_picker_active = pick_mb.is_picker_active
+pick.set_picker_items = pick_mb.set_picker_items
+pick.start = pick_mb.start
 ```

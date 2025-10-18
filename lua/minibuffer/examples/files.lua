@@ -17,13 +17,9 @@ local function format_fn(item)
   local name = item:match("([^/]+)$") or item
   local dir = item:sub(1, #item - #name)
   return {
-    { text = dir, hl = "Comment" },
+    { text = " " .. dir, hl = "Comment" },
     { text = name, hl = "Normal" },
   }
-end
-
-local function item_compare_fn(old, new)
-  return old == new
 end
 
 -- Use fd's filtering entirely
@@ -89,16 +85,10 @@ return function(o)
     allow_shrink = false,
     max_height = 15,
     format_fn = format_fn,
-    item_compare_fn = item_compare_fn,
     filter_fn = filter_fn,
     on_select = function(selection)
-      if type(selection) == "table" then
-        -- Open all selected; last one remains active
-        for _, file in ipairs(selection) do
-          vim.cmd("edit " .. vim.fn.fnameescape(file))
-        end
-      elseif type(selection) == "string" then
-        vim.cmd("edit " .. vim.fn.fnameescape(selection))
+      for _, file in ipairs(selection) do
+        vim.cmd("edit " .. vim.fn.fnameescape(file))
       end
     end,
     on_start = function(buf, sess, keyset)

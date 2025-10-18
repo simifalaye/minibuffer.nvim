@@ -1,10 +1,6 @@
 local function create_preview(win)
   -- Save current window state
   local cur_buf = vim.api.nvim_win_get_buf(win)
-  local cur_view
-  vim.api.nvim_win_call(win, function()
-    cur_view = vim.fn.winsaveview()
-  end)
 
   -- Create scratch buffer
   local scratch = vim.api.nvim_create_buf(false, true)
@@ -14,9 +10,6 @@ local function create_preview(win)
     function()
       if vim.api.nvim_win_is_valid(win) and vim.api.nvim_buf_is_valid(cur_buf) then
         vim.api.nvim_win_set_buf(win, cur_buf)
-        vim.api.nvim_win_call(win, function()
-          vim.fn.winrestview(cur_view)
-        end)
       end
     end
 end
@@ -83,10 +76,6 @@ local function format_fn(item)
   }
 end
 
-local function item_compare_fn(old, new)
-  return old.bufnr == new.bufnr
-end
-
 local function filter_fn(items, input)
   if input == "" then
     return items
@@ -113,7 +102,6 @@ return function()
     allow_shrink = false,
     max_height = 15,
     format_fn = format_fn,
-    item_compare_fn = item_compare_fn,
     filter_fn = filter_fn,
     on_change = function(_, item)
       if not active_win then
@@ -129,7 +117,9 @@ return function()
       end)
     end,
     on_select = function(selection)
-      vim.cmd("b " .. selection.bufnr)
+      if selection[1].bufnr then
+        vim.cmd("b " .. selection[1].bufnr)
+      end
     end,
     on_close = function()
       if restore_fn then
