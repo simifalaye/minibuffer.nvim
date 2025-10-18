@@ -4,7 +4,7 @@
 
 A **highly experimental** general purpose interactive interface for neovim.
 
-![demo](https://github.com/simifalaye/minibuffer.nvim/blob/f99ad3f1d416e7531271be15b51fd00fea5d5663/demo.mp4)
+https://github.com/simifalaye/minibuffer.nvim/blob/f99ad3f1d416e7531271be15b51fd00fea5d5663/demo.mp4
 
 **NOTE**:
 - This plugin is still under development
@@ -117,7 +117,7 @@ plugin repo could break the integration.
 ![which-key-integration](https://github.com/simifalaye/minibuffer.nvim/blob/f99ad3f1d416e7531271be15b51fd00fea5d5663/which-key-integration.png)
 
 ```lua
--- NOTE: call loading plugin
+-- NOTE: after loading plugin
 local wk_mb = require("minibuffer.integrations.which-key")
 local wk_view = require("which-key.view")
 wk_view.show = wk_mb.show
@@ -129,7 +129,7 @@ wk_view.hide = wk_mb.hide
 ![fff-integration](https://github.com/simifalaye/minibuffer.nvim/blob/f99ad3f1d416e7531271be15b51fd00fea5d5663/fff-integration.png)
 
 ```lua
--- NOTE: call loading plugin
+-- NOTE: after loading plugin
 local picker_ui = require("fff.picker_ui")
 picker_ui.open = require("minibuffer.integrations.fff")
 ```
@@ -144,7 +144,7 @@ picker_ui.open = require("minibuffer.integrations.fff")
 from the examples
 
 ```lua
--- NOTE: call loading plugin
+-- NOTE: after loading plugin
 local pick_mb = require("minibuffer.integrations.mini-pick")
 pick.is_picker_active = pick_mb.is_picker_active
 pick.set_picker_items = pick_mb.set_picker_items
