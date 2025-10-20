@@ -369,6 +369,7 @@ function SelectSession:post_start()
 
   vim.api.nvim_buf_attach(buf, false, {
     on_lines = function(_, _, _, _, _, _, _)
+      vim.api.nvim_set_option_value("modified", false, { buf = buf })
       if self.closed then
         return true
       end
@@ -386,6 +387,7 @@ function SelectSession:post_start()
     end,
   })
   vim.cmd("startinsert!")
+  vim.api.nvim_set_option_value("modified", false, { buf = buf })
   pcall(vim.api.nvim_feedkeys, self.input, "t", false)
 end
 
@@ -835,6 +837,8 @@ function InputSession:post_start()
 
   vim.api.nvim_buf_attach(buf, false, {
     on_lines = function(_, _, _, _, _, _, _)
+      vim.api.nvim_set_option_value("modified", false, { buf = buf })
+      vim.cmd("setlocal nomodified")
       if self.closed then
         return true
       end
@@ -852,6 +856,7 @@ function InputSession:post_start()
     end,
   })
   vim.cmd("startinsert!")
+  vim.api.nvim_set_option_value("modified", false, { buf = buf })
   pcall(vim.api.nvim_feedkeys, self.input, "t", false)
 end
 
@@ -1169,6 +1174,7 @@ end
 ------------------------------------------------------------
 
 function M.initialize()
+  -- Setup highlights
   if not state.initialized then
     local defs = {
       MinibufferPrompt = { link = "Question" },
@@ -1181,6 +1187,22 @@ function M.initialize()
       pcall(vim.api.nvim_set_hl, 0, k, v)
     end
   end
+  -- Make sure to close minibuffer when cmdline is shown or hidden by extui
+  local cmdline = require("vim._extui.cmdline")
+  local original_show = cmdline.cmdline_show
+  local original_hide = cmdline.cmdline_hide
+  cmdline.cmdline_show = function(content, pos, firstc, prompt, indent, level, hl_id)
+    if state.session then
+      state.session:close()
+    end
+    original_show(content, pos, firstc, prompt, indent, level, hl_id)
+  end
+  cmdline.cmdline_hide = function(level, abort)
+    if state.session then
+      state.session:close()
+    end
+    original_hide(level, abort)
+  end
   state.initialized = true
 end
 
@@ -1188,6 +1210,9 @@ end
 ---@param force boolean|nil
 ---@return boolean started
 function M.start_session(session, force)
+  if not state.initialized then
+    M.initialize()
+  end
   if force == nil then
     force = false
   end
@@ -1216,7 +1241,9 @@ function M.start_session(session, force)
   vim.api.nvim_create_autocmd("VimResized", {
     group = state.augroup,
     callback = function()
-      session:render()
+      if state.session then
+        state.session:render()
+      end
     end,
   })
 
