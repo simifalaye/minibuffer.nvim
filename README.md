@@ -4,7 +4,7 @@
 
 A **highly experimental** general purpose interactive interface for neovim.
 
-https://github.com/simifalaye/minibuffer.nvim/blob/f99ad3f1d416e7531271be15b51fd00fea5d5663/demo.mp4
+https://github.com/user-attachments/assets/d69b3d3a-03d9-4285-aebb-23d1d895b831
 
 **NOTE**:
 - This plugin is still under development
@@ -114,7 +114,7 @@ plugin repo could break the integration.
 
 ## Which-key.nvim
 
-![which-key-integration](https://github.com/simifalaye/minibuffer.nvim/blob/f99ad3f1d416e7531271be15b51fd00fea5d5663/which-key-integration.png)
+<img width="2534" height="1333" alt="which-key-integration" src="https://github.com/user-attachments/assets/636e0026-4e17-4bc8-9535-396fccb256fc" />
 
 ```lua
 -- NOTE: after loading plugin
@@ -126,7 +126,7 @@ wk_view.hide = wk_mb.hide
 
 ## FFF.nvim
 
-![fff-integration](https://github.com/simifalaye/minibuffer.nvim/blob/f99ad3f1d416e7531271be15b51fd00fea5d5663/fff-integration.png)
+<img width="2542" height="1342" alt="fff-integration" src="https://github.com/user-attachments/assets/2fdacf4f-35ba-479f-adb8-cf8e39b7d512" />
 
 ```lua
 -- NOTE: after loading plugin
@@ -136,7 +136,7 @@ picker_ui.open = require("minibuffer.integrations.fff")
 
 ## mini-pick.nvim
 
-![mini-pick-integration](https://github.com/simifalaye/minibuffer.nvim/blob/f99ad3f1d416e7531271be15b51fd00fea5d5663/mini-pick-integration.png)
+<img width="2538" height="1333" alt="mini-pick-integration" src="https://github.com/user-attachments/assets/eec8c0f3-fc71-46ae-ba3e-bdbaceb4188c" />
 
 **NOTE**:
 - Not tested with extra pickers found in mini-extra
