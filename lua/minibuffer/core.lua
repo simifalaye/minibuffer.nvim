@@ -1174,8 +1174,12 @@ end
 ------------------------------------------------------------
 
 function M.initialize()
+  if state.initialized then
+    return
+  end
+
   -- Setup highlights
-  if not state.initialized then
+  local function setup_hl()
     local defs = {
       MinibufferPrompt = { link = "Question" },
       MinibufferSelection = { link = "Visual" },
@@ -1187,6 +1191,26 @@ function M.initialize()
       pcall(vim.api.nvim_set_hl, 0, k, v)
     end
   end
+  setup_hl()
+  vim.api.nvim_create_autocmd("ColorScheme", {
+    group = state.augroup,
+    callback = function()
+      vim.schedule(function()
+        setup_hl()
+      end)
+    end,
+  })
+
+  -- Re-render on resize
+  vim.api.nvim_create_autocmd("VimResized", {
+    group = state.augroup,
+    callback = function()
+      if state.session then
+        state.session:render()
+      end
+    end,
+  })
+
   -- Make sure to close minibuffer when cmdline is shown or hidden by extui
   local cmdline = require("vim._extui.cmdline")
   local original_show = cmdline.cmdline_show
@@ -1238,15 +1262,6 @@ function M.start_session(session, force)
   session:render()
   session:post_start()
 
-  vim.api.nvim_create_autocmd("VimResized", {
-    group = state.augroup,
-    callback = function()
-      if state.session then
-        state.session:render()
-      end
-    end,
-  })
-
   return true
 end
 
@@ -1259,7 +1274,6 @@ function M.cleanup()
     return
   end
 
-  vim.api.nvim_clear_autocmds({ group = state.augroup })
   util.wipe_cmd_buffer()
   util.set_win_height(win, ext.cmdheight, true)
   util.restore_window_sizes(state.win_sizes)
