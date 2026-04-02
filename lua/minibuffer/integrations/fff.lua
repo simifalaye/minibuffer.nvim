@@ -16,7 +16,7 @@ local function find(query)
 
   query = query or ""
   local fff_result =
-    file_picker.search_files(query, 100, 4, state.current_file_cache, false)
+    file_picker.search_files(query, state.current_file_cache, nil, nil, nil)
 
   local items = {}
   for _, fff_item in ipairs(fff_result) do

@@ -1,9 +1,9 @@
----NOTE: This file assumes `require("vim._extui").enable({})` has been called elsewhere.
+---NOTE: This file assumes `require("vim._core.ui2").enable({})` has been called elsewhere.
 
-local ext = require("vim._extui.shared")
+local ext = require("vim._core.ui2")
 if not ext then
   error(
-    "Failed to load vim._extui. Make sure you are running neovim 0.12+ with extui enabled (require'vim._extui'.enable({}))"
+    "Failed to load vim._core.ui2. Make sure you are running neovim 0.12+ with ui2 enabled (require'vim._core.ui2'.enable({}))"
   )
 end
 
@@ -1211,8 +1211,8 @@ function M.initialize()
     end,
   })
 
-  -- Make sure to close minibuffer when cmdline is shown or hidden by extui
-  local cmdline = require("vim._extui.cmdline")
+  -- Make sure to close minibuffer when cmdline is shown or hidden by ui2
+  local cmdline = require("vim._core.ui2.cmdline")
   local original_show = cmdline.cmdline_show
   local original_hide = cmdline.cmdline_hide
   cmdline.cmdline_show = function(content, pos, firstc, prompt, indent, level, hl_id)

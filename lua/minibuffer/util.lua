@@ -1,7 +1,7 @@
-local ext = require("vim._extui.shared")
+local ext = require("vim._core.ui2")
 if not ext then
   error(
-    "Failed to load vim._extui. Make sure you are running neovim 0.12+ with extui enabled (require'vim._extui'.enable({}))"
+    "Failed to load vim._core.ui2. Make sure you are running neovim 0.12+ with ui2 enabled (require'vim._core.ui2'.enable({}))"
   )
 end
 

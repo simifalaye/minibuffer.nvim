@@ -8,7 +8,7 @@ https://github.com/user-attachments/assets/d69b3d3a-03d9-4285-aebb-23d1d895b831
 
 **NOTE**:
 - This plugin is still under development
-- It depends on an experimental feature in neovim nightly (`vim._extui`)
+- It depends on an experimental feature in neovim (`vim._core.ui2`)
 
 This plugin provides an api for an optional unified interactive buffer
 interface. Instead of having one plugin open a floating popup for fuzzy
@@ -40,15 +40,34 @@ integration implementations in `lua/minibuffer/integrations`.
 
 # Prerequisites
 
-- `neovim >= 0.12` (currently on nightly)
-- Extui enable somewhere early in your init.lua:
+- `neovim >= 0.12`
+- ui2 enable somewhere early in your init.lua:
 ```lua
-require("vim._extui").enable({ enable = true, msg = { target = "msg" } })
+require("vim._core.ui2").enable({ enable = true, msg = { target = "msg" } })
 ```
 
 # Installation
 
-**MAKE SURE YOU HAVE ENABLED vim._extui (See prerequisites)**
+**MAKE SURE YOU HAVE ENABLED vim._core.ui2 (See prerequisites)**
+
+- vim.pack
+```lua
+vim.pack.add({
+  {
+    src = "https://github.com/simifalaye/minibuffer.nvim",
+  },
+})
+
+local minibuffer = require("minibuffer")
+
+vim.ui.select = require("minibuffer.builtin.ui_select")
+vim.ui.input = require("minibuffer.builtin.ui_input")
+
+vim.keymap.set("n", "<M-;>", require("minibuffer.builtin.cmdline"))
+vim.keymap.set("n", "<M-.>", function()
+  minibuffer.resume(true)
+end)
+```
 
 - [mini.deps](https://github.com/nvim-mini/mini.deps)
 
