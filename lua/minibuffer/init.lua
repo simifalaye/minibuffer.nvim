@@ -35,12 +35,12 @@ function M.display(opts, force)
   return core.start_session(core.DisplaySession.new(opts or {}), force)
 end
 
----Open a general session
----Options are forwarded to `M.GeneralSession.new`.
----@param opts minibuffer.core.GeneralSessionOpts|nil
+---Open a scratch session
+---Options are forwarded to `M.ScratchSession.new`.
+---@param opts minibuffer.core.ScratchSessionOpts|nil
 ---@param force boolean|nil
 ---@return boolean started
-function M.general(opts, force)
+function M.scratch(opts, force)
   local core = require("minibuffer.core")
   return core.start_session(core.ScratchSession.new(opts or {}), force)
 end
