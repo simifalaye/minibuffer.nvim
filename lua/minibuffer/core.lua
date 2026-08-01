@@ -960,7 +960,7 @@ function InputSession:accept_suggestion()
       newi = self.input .. text
     end
   else
-    newi = self.input + text
+    newi = self.input .. text
   end
 
   if type(newi) ~= "string" then

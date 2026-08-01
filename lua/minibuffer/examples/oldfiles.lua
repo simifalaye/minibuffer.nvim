@@ -34,7 +34,7 @@ local function filter_fn(items, input)
   end
   local results = {}
   for _, item in ipairs(items) do
-    if item:lower():find(input) then
+    if item.path:lower():find(input, 1, true) or item.name:lower():find(input, 1, true) then
       results[#results + 1] = item
     end
   end

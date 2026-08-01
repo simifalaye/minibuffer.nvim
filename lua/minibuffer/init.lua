@@ -42,7 +42,7 @@ end
 ---@return boolean started
 function M.general(opts, force)
   local core = require("minibuffer.core")
-  return core.start_session(core.GeneralSession.new(opts or {}), force)
+  return core.start_session(core.ScratchSession.new(opts or {}), force)
 end
 
 ---Resume last interactive minibuffer session
