@@ -51,10 +51,12 @@ Session.__index = Session
 ---@field INPUT '"input"'
 ---@field SELECT '"select"'
 ---@field DISPLAY '"display"'
+---@field SCRATCH '"scratch"'
 local SESSION_TYPES = {
   INPUT = "input",
   SELECT = "select",
   DISPLAY = "display",
+  SCRATCH = "scratch",
 }
 
 ---@class minibuffer.core.InternalState
@@ -137,7 +139,7 @@ function SelectSession.new(opts)
   local self = setmetatable({
     closed = false,
     resumable = opts.resumable == true,
-    prompt = (opts.prompt or "Select:") .. " ",
+    prompt = opts.prompt or "Select: ",
     items = opts.items or {},
     format_fn = opts.format_fn,
     filter_fn = opts.filter_fn,
@@ -352,6 +354,12 @@ function SelectSession:post_start()
     self:move(-1)
   end, base)
   keyset("i", "<C-n>", function()
+    self:move(1)
+  end, base)
+  keyset("i", "<S-Tab>", function()
+    self:move(-1)
+  end, base)
+  keyset("i", "<Tab>", function()
     self:move(1)
   end, base)
   keyset("i", "<C-w>", "<C-S-w>", base)
@@ -654,7 +662,7 @@ end
 
 ---@return minibuffer.core.SessionType
 function InputSession:type()
-  return SESSION_TYPES.SELECT
+  return SESSION_TYPES.INPUT
 end
 
 ---@return boolean
@@ -679,6 +687,7 @@ function InputSession:pre_start()
   state.win_sizes = util.get_window_sizes()
 
   local display_height = math.min(self.max_height, #self.suggestions)
+  display_height = math.max(display_height, 1)
   self.display_height = display_height
 
   util.wipe_cmd_buffer()
@@ -825,6 +834,12 @@ function InputSession:post_start()
   keyset("i", "<C-n>", function()
     self:move(1)
   end, base)
+  keyset("i", "<S-Tab>", function()
+    self:move(-1)
+  end, base)
+  keyset("i", "<Tab>", function()
+    self:move(1)
+  end, base)
   keyset("i", "<C-y>", function()
     self:accept_suggestion()
   end, base)
@@ -858,6 +873,21 @@ function InputSession:post_start()
   vim.cmd("startinsert!")
   vim.api.nvim_set_option_value("modified", false, { buf = buf })
   pcall(vim.api.nvim_feedkeys, self.input, "t", false)
+end
+
+function InputSession:set_input(text)
+  local buf = util.get_cmd_buf()
+  if not buf then
+    return
+  end
+
+  local prompt = vim.fn.prompt_getprompt(buf)
+  vim.api.nvim_buf_set_lines(buf, 0, 1, false, {
+    prompt .. text,
+  })
+  vim.api.nvim_win_set_cursor(0, { 1, #prompt + #text })
+
+  self.input = text
 end
 
 function InputSession:refresh_suggestions()
@@ -1013,7 +1043,7 @@ function InputSession:close()
 end
 
 ------------------------------------------------------------
--- Display Session (unchanged except for highlight additions)
+-- Display Session
 ------------------------------------------------------------
 
 ---@class minibuffer.core.DisplaySession : minibuffer.core.Session
@@ -1022,7 +1052,7 @@ end
 ---@field on_close minibuffer.core.CloseCallback|nil
 ---@field close_keys string[]
 ---@field allow_shrink boolean
----@field timer uv.uv_timer_t|nil
+---@field _timer uv.uv_timer_t|nil
 local DisplaySession = {}
 DisplaySession.__index = DisplaySession
 M.DisplaySession = DisplaySession
@@ -1047,14 +1077,14 @@ function DisplaySession.new(opts)
     close_keys = opts.close_keys or { "<F5>" },
     allow_shrink = opts.allow_shrink == true,
 
-    timer = nil,
+    _timer = nil,
   }, DisplaySession)
   return self
 end
 
 ---@return minibuffer.core.SessionType
 function DisplaySession:type()
-  return SESSION_TYPES.SELECT
+  return SESSION_TYPES.DISPLAY
 end
 
 ---@return boolean
@@ -1073,16 +1103,16 @@ function DisplaySession:pre_start()
   self.closed = false
 
   if self.timeout and self.timeout > 0 then
-    local timer = uv.new_timer()
-    self.timer = timer
-    self.timer:start(self.timeout, 0, function()
+    local _timer = uv.new_timer()
+    self._timer = _timer
+    self._timer:start(self.timeout, 0, function()
       vim.schedule(function()
         if state.session == self then
           self:close()
         else
-          if timer then
-            pcall(timer.stop, timer)
-            pcall(timer.close, timer)
+          if _timer then
+            pcall(_timer.stop, _timer)
+            pcall(_timer.close, _timer)
           end
         end
       end)
@@ -1111,7 +1141,6 @@ function DisplaySession:render()
   if not self.allow_shrink then
     new_height = math.max(vim.api.nvim_win_get_height(win), new_height)
   end
-  util.set_win_height(win, new_height, false)
   util.set_win_height(win, new_height + 1, true)
   util.resize_windows_for_cmdheight(state.win_sizes, new_height - ext.cmdheight)
   vim.cmd.redraw()
@@ -1142,10 +1171,10 @@ function DisplaySession:close()
   end
   self.closed = true
 
-  if self.timer then
-    pcall(self.timer.stop, self.timer)
-    pcall(self.timer.close, self.timer)
-    self.timer = nil
+  if self._timer then
+    pcall(self._timer.stop, self._timer)
+    pcall(self._timer.close, self._timer)
+    self._timer = nil
   end
 
   local cb = self.on_close
@@ -1167,6 +1196,184 @@ function DisplaySession:update_lines(lines)
   self.lines = lines
   self:render()
   return true
+end
+
+------------------------------------------------------------
+-- Scratch Session
+------------------------------------------------------------
+
+local default_nvim_open_win = vim.api.nvim_open_win
+local default_nvim_win_set_config = vim.api.nvim_win_set_config
+
+---@class minibuffer.core.ScratchSession : minibuffer.core.Session
+---@field buf integer
+---@field win_config vim.api.keyset.win_config
+---@field enter boolean
+---@field _win integer
+local ScratchSession = {}
+ScratchSession.__index = ScratchSession
+M.ScratchSession = ScratchSession
+
+---@class minibuffer.core.ScratchSessionOpts
+---@field buf integer
+---@field win_config vim.api.keyset.win_config
+---@field enter boolean
+
+---@param opts minibuffer.core.ScratchSessionOpts|nil
+---@return minibuffer.core.ScratchSession
+function ScratchSession.new(opts)
+  opts = opts or {}
+  local self = setmetatable({
+    closed = false,
+    resumable = false,
+    buf = opts.buf,
+    win_config = opts.win_config,
+    enter = opts.enter,
+
+    _win = -1,
+  }, ScratchSession)
+  return self
+end
+
+---@return minibuffer.core.SessionType
+function ScratchSession:type()
+  return SESSION_TYPES.SCRATCH
+end
+
+---@return boolean
+function ScratchSession:overridable()
+  return true
+end
+
+function ScratchSession:pre_start()
+  local cmd_win = util.get_cmd_win()
+  if not cmd_win then
+    return
+  end
+  state.win_sizes = util.get_window_sizes()
+
+  self.closed = false
+
+  util.wipe_cmd_buffer()
+  util.enable_cmd_buffer_ts(false)
+end
+
+function ScratchSession:render()
+  local cmd_win = util.get_cmd_win()
+  if not cmd_win then
+    return
+  end
+
+  if not vim.api.nvim_win_is_valid(self._win) then
+    local cfg = self.win_config
+    cfg = vim.tbl_deep_extend("force", cfg, {
+      anchor = "SW",
+      relative = "editor",
+      row = vim.o.lines,
+      col = 0,
+      width = vim.o.columns,
+      win = cmd_win,
+      zindex = vim.api.nvim_win_get_config(cmd_win).zindex + 1,
+    })
+
+    self._win = default_nvim_open_win(self.buf, self.enter, cfg)
+
+    local augroup = vim.api.nvim_create_augroup(
+      "minibuffer-win-" .. tostring(self._win),
+      { clear = true }
+    )
+    vim.api.nvim_create_autocmd("WinClosed", {
+      group = augroup,
+      pattern = tostring(self._win),
+      callback = function()
+        if not (self._win and vim.api.nvim_win_is_valid(self._win)) then
+          return true
+        end
+        self:close()
+      end,
+    })
+    vim.api.nvim_create_autocmd("WinClosed", {
+      group = augroup,
+      pattern = tostring(self._win),
+      callback = function()
+        if not (self._win and vim.api.nvim_win_is_valid(self._win)) then
+          return true
+        end
+      self:render()
+      end,
+    })
+  end
+
+  local cfg = vim.api.nvim_win_get_config(self._win)
+
+  local additional_height = 0
+  if type(cfg.border) == "table" then
+    if cfg.border[2] ~= "" then
+      additional_height = additional_height + 1
+    end
+    if cfg.border[6] ~= "" then
+      additional_height = additional_height + 1
+    end
+  elseif type(cfg.border) == "string" and cfg.border ~= "none" then
+    additional_height = additional_height + 2
+  end
+
+  util.set_win_height(cmd_win, cfg.height + additional_height, true)
+  util.resize_windows_for_cmdheight(state.win_sizes, cfg.height - ext.cmdheight)
+  vim.cmd.redraw()
+end
+
+function ScratchSession:post_start() end
+
+function ScratchSession:cancel()
+  self:close()
+end
+
+function ScratchSession:close()
+  if self.closed then
+    return
+  end
+  self.closed = true
+
+  if self._win and vim.api.nvim_win_is_valid(self._win) then
+    pcall(vim.api.nvim_win_close, self._win, true)
+  end
+  if self.buf and vim.api.nvim_buf_is_valid(self.buf) then
+    pcall(vim.api.nvim_buf_delete, self.buf, { force = true })
+  end
+
+  self._win = -1
+
+  M.cleanup()
+end
+
+---@param config vim.api.keyset.win_config
+function ScratchSession:set_win_config(config)
+  if self.closed then
+    return false
+  end
+
+  local cmd_win = util.get_cmd_win()
+  if not cmd_win or not vim.api.nvim_win_is_valid(self._win) then
+    return
+  end
+
+  local cfg = vim.tbl_deep_extend("force", config, {
+    anchor = "SW",
+    relative = "editor",
+    row = vim.o.lines,
+    col = 0,
+    width = vim.o.columns,
+    win = cmd_win,
+    zindex = vim.api.nvim_win_get_config(cmd_win).zindex + 1,
+  })
+  default_nvim_win_set_config(self._win, cfg)
+
+  self:render()
+end
+
+function ScratchSession:get_win()
+  return self._win
 end
 
 ------------------------------------------------------------
@@ -1227,6 +1434,38 @@ function M.initialize()
     end
     original_hide(level, abort)
   end
+
+  -- Wrap win config functions to detect buffers destined for the minibuffer
+  local _nvim_open_win = vim.api.nvim_open_win
+  local _nvim_win_set_config = vim.api.nvim_win_set_config
+  ---@diagnostic disable-next-line: duplicate-set-field
+  vim.api.nvim_open_win = function(buf, enter, opts)
+    if opts.use_minibuffer then
+      ---@diagnostic disable-next-line: inject-field
+      opts.use_minibuffer = nil
+      local s = M.ScratchSession.new({ win_config = opts, buf = buf, enter = enter })
+      if not M.start_session(s, false) then
+        return 0
+      end
+      return s:get_win()
+    end
+    return _nvim_open_win(buf, enter, opts)
+  end
+  ---@diagnostic disable-next-line: duplicate-set-field
+  vim.api.nvim_win_set_config = function(win, config)
+    if state.session and state.session:type() == SESSION_TYPES.SCRATCH then
+      local s = state.session
+      ---@cast s minibuffer.core.ScratchSession
+      if s:get_win() == win then
+        ---@diagnostic disable-next-line: inject-field
+        config.use_minibuffer = nil
+        s:set_win_config(config)
+        return
+      end
+    end
+    return _nvim_win_set_config(win, config)
+  end
+
   state.initialized = true
 end
 
@@ -1241,9 +1480,7 @@ function M.start_session(session, force)
     force = false
   end
   if not util.ready() then
-    vim.schedule(function()
-      vim.notify("[mb] ext cmd buffer not ready yet.", vim.log.levels.WARN)
-    end)
+    vim.notify("[mb] ext cmd buffer not ready yet.", vim.log.levels.WARN)
     return false
   end
   if not force and state.session and not state.session:overridable() then

@@ -7,16 +7,14 @@ A **highly experimental** general purpose interactive interface for neovim.
 https://github.com/user-attachments/assets/d69b3d3a-03d9-4285-aebb-23d1d895b831
 
 **NOTE**:
+
 - This plugin is still under development
 - It depends on an experimental feature in neovim (`vim._core.ui2`)
 
-This plugin provides an api for an optional unified interactive buffer
-interface. Instead of having one plugin open a floating popup for fuzzy
-file search, another showing a completion menu at the bottom, another
-drawing commandline completions above the status bar and yet another
-drawing a general purpose picker in a different location, you can choose
-to have one place where interactive input can be shown that feels native
-to the editor and is predictable. This includes:
+This plugin provides an api for an optional unified interactive buffer interface.
+Instead of having one plugin open a floating popup for fuzzy file search, another showing a completion menu at the bottom, another drawing commandline completions above the status bar and yet another drawing a general purpose picker in a different location, you can choose to have one place where interactive input can be shown that feels native to the editor and is predictable.
+This includes:
+
 - Running commands with completion.
 - Fuzzy finding files or buffers.
 - Searching text across a project.
@@ -24,33 +22,30 @@ to the editor and is predictable. This includes:
 - Even interactive plugin UIs (think Telescope, fzf, etc).
 - Display timely content (think which-key.nvim or mini.pick)
 
-For Neovim, something like this could replace the ad-hoc popup/floating
-windows many plugins use, giving us a consistent workflow: a single
-expandable buffer for all kinds of input and interactive tasks.
+For Neovim, something like this could replace the ad-hoc popup/floating windows many plugins use, giving us a consistent workflow: a single expandable buffer for all kinds of input and interactive tasks.
 
 # Goal
 
-The goal of this plugin is to eventually put some form of
-`lua/minibuffer/core.lua` into neovim core if desired by the
-maintainers.
+The goal of this plugin is to eventually put some form of `lua/minibuffer/core.lua` into neovim core if desired by the maintainers.
 
-Since this interface exists as plugin for now, it will require an
-integration layer with other plugins to use their backend. I have
-integration implementations in `lua/minibuffer/integrations`.
+Since this interface exists as plugin for now, it will require an integration layer with other plugins to use their backend.
+I have integration implementations in `lua/minibuffer/integrations`.
 
 # Prerequisites
 
 - `neovim >= 0.12`
 - ui2 enable somewhere early in your init.lua:
+
 ```lua
 require("vim._core.ui2").enable({ enable = true, msg = { target = "msg" } })
 ```
 
 # Installation
 
-**MAKE SURE YOU HAVE ENABLED vim._core.ui2 (See prerequisites)**
+**MAKE SURE YOU HAVE ENABLED vim.\_core.ui2 (See prerequisites)**
 
 - vim.pack
+
 ```lua
 vim.pack.add({
   {
@@ -63,7 +58,8 @@ local minibuffer = require("minibuffer")
 vim.ui.select = require("minibuffer.builtin.ui_select")
 vim.ui.input = require("minibuffer.builtin.ui_input")
 
-vim.keymap.set("n", "<M-;>", require("minibuffer.builtin.cmdline"))
+vim.keymap.set("n", "<M-;>", ":")
+vim.keymap.set("n", ":", require("minibuffer.builtin.cmdline"))
 vim.keymap.set("n", "<M-.>", function()
   minibuffer.resume(true)
 end)
@@ -82,7 +78,8 @@ MiniDeps.now(function()
   vim.ui.select = require("minibuffer.builtin.ui_select")
   vim.ui.input = require("minibuffer.builtin.ui_input")
 
-  vim.keymap.set("n", "<M-;>", require("minibuffer.builtin.cmdline"))
+  vim.keymap.set("n", "<M-;>", ":")
+  vim.keymap.set("n", ":", require("minibuffer.builtin.cmdline"))
   vim.keymap.set("n", "<M-.>", function()
     minibuffer.resume(true)
   end)
@@ -100,7 +97,8 @@ end)
     vim.ui.select = require("minibuffer.builtin.ui_select")
     vim.ui.input = require("minibuffer.builtin.ui_input")
 
-    vim.keymap.set("n", "<M-;>", require("minibuffer.builtin.cmdline"))
+    vim.keymap.set("n", "<M-;>", ":")
+    vim.keymap.set("n", ":", require("minibuffer.builtin.cmdline"))
     vim.keymap.set("n", "<M-.>", function()
       minibuffer.resume(true)
     end)
@@ -110,8 +108,7 @@ end)
 
 # Examples
 
-I have written a few usable examples for this interface for
-demonstration.
+I have written a few usable examples for this interface for demonstration.
 
 ## Custom Pickers
 
@@ -127,20 +124,18 @@ vim.keymap.set("n", "<leader>O", require("minibuffer.examples.oldfiles"))
 
 # Integrations with existing plugins
 
-These integrations are mostly for demonstration purposes as proper
-support will best happen inside each plugin themselves. Changes to each
-plugin repo could break the integration.
-
 ## Which-key.nvim
 
 <img width="2534" height="1333" alt="which-key-integration" src="https://github.com/user-attachments/assets/636e0026-4e17-4bc8-9535-396fccb256fc" />
 
 ```lua
--- NOTE: after loading plugin
-local wk_mb = require("minibuffer.integrations.which-key")
-local wk_view = require("which-key.view")
-wk_view.show = wk_mb.show
-wk_view.hide = wk_mb.hide
+-- Setup plugin with minibuffer window config
+require("which-key").setup({
+  win = { use_minibuffer = true },
+})
+
+-- Set highlights to match command window
+pcall(vim.api.nvim_set_hl, 0, "WhichKeyNormal", { link = "Normal" })
 ```
 
 ## FFF.nvim
@@ -149,23 +144,42 @@ wk_view.hide = wk_mb.hide
 
 ```lua
 -- NOTE: after loading plugin
-local picker_ui = require("fff.picker_ui")
-picker_ui.open = require("minibuffer.integrations.fff")
+local fff_mb = require("minibuffer.integrations.fff")
+
+vim.keymap.set("n", "<leader><leader>", function()
+  fff_mb.file_search({})
+end, { desc = "FFFind" })
+
+vim.keymap.set("n", "<leader>/", function()
+  fff_mb.content_search({})
+end, { desc = "FFFGrep" })
 ```
 
 ## mini-pick.nvim
 
 <img width="2538" height="1333" alt="mini-pick-integration" src="https://github.com/user-attachments/assets/eec8c0f3-fc71-46ae-ba3e-bdbaceb4188c" />
 
-**NOTE**:
-- Not tested with extra pickers found in mini-extra
-- `live-grep` does not work yet, feel free to use the live-grep picker
-from the examples
-
 ```lua
--- NOTE: after loading plugin
-local pick_mb = require("minibuffer.integrations.mini-pick")
-pick.is_picker_active = pick_mb.is_picker_active
-pick.set_picker_items = pick_mb.set_picker_items
-pick.start = pick_mb.start
+local win_config = function()
+  local ret = {
+    border = { " ", " ", " ", " ", " ", " ", " ", " " },
+    width = vim.o.columns,
+    use_minibuffer = true,
+  }
+  return ret
+end
+
+-- Setup plugin with minibuffer window config
+pick.setup({
+  window = { config = win_config },
+})
+
+-- Set highlights to match command window
+pcall(vim.api.nvim_set_hl, 0, "MiniPickBorder", { link = "Normal" })
+pcall(vim.api.nvim_set_hl, 0, "MiniPickBorderBusy", { link = "Normal" })
+pcall(vim.api.nvim_set_hl, 0, "MiniPickNormal", { link = "Normal" })
+pcall(vim.api.nvim_set_hl, 0, "MiniPickHeader", { link = "Normal" })
+
+-- Use mini.pick's internal resume function to resume the picker
+vim.keymap.set("n", "<leader><CR>", "<cmd>Pick resume<CR>", { desc = "Resume Picker" })
 ```

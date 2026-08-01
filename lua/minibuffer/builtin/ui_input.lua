@@ -9,11 +9,8 @@ return function(opts, on_confirm)
     require("minibuffer").input({
       prompt = prompt,
       initial_text = default,
-      item_compare_fn = function(old, new)
-        return old == new
-      end,
       format_fn = function(item)
-        return { { text = item, hl = highlight(item) } }
+        return { { text = " " .. item, hl = highlight(item) } }
       end,
       get_suggestions = function(input)
         local suggestions = {}

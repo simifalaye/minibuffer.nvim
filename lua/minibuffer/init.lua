@@ -35,6 +35,16 @@ function M.display(opts, force)
   return core.start_session(core.DisplaySession.new(opts or {}), force)
 end
 
+---Open a general session
+---Options are forwarded to `M.GeneralSession.new`.
+---@param opts minibuffer.core.GeneralSessionOpts|nil
+---@param force boolean|nil
+---@return boolean started
+function M.general(opts, force)
+  local core = require("minibuffer.core")
+  return core.start_session(core.GeneralSession.new(opts or {}), force)
+end
+
 ---Resume last interactive minibuffer session
 ---@param force boolean|nil
 ---@return boolean started

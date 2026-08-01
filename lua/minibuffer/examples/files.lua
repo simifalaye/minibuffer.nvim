@@ -6,7 +6,19 @@ end
 local util = require("minibuffer.util")
 
 local opts = {
-  fd_opts = { "fd", "--type", "f", "--type", "l", "--color", "never", "-E", ".git", "-p" },
+  fd_opts = {
+    "fd",
+    "--type",
+    "f",
+    "--type",
+    "l",
+    "--hidden",
+    "--color",
+    "never",
+    "-E",
+    ".git",
+    "-p",
+  },
   cwd = nil,
 }
 
@@ -78,7 +90,7 @@ return function(o)
   opts = vim.tbl_deep_extend("force", opts, o or {})
   require("minibuffer").select({
     resumable = true,
-    prompt = "Files:",
+    prompt = "Files: ",
     items = {}, -- empty initially; async_fetch fills
     async_fetch = async_fetch,
     multi = true, -- allow multi selection
@@ -120,7 +132,7 @@ return function(o)
           end
         end
         if #qf > 0 then
-          vim.fn.setqflist(qf, " ", { title = "Selected Files" })
+          vim.fn.setqflist({}, " ", { title = "Selected Files", items = qf })
           vim.cmd("copen")
         end
       end, { buffer = buf, noremap = true, silent = true })

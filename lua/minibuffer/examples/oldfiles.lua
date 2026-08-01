@@ -48,7 +48,7 @@ return function(o)
   local minibuffer = require("minibuffer")
   minibuffer.select({
     resumable = true,
-    prompt = "Oldfiles:",
+    prompt = "Oldfiles: ",
     items = oldfiles,
     multi = false,
     allow_shrink = false,
@@ -56,7 +56,7 @@ return function(o)
     format_fn = format_fn,
     filter_fn = filter_fn,
     on_select = function(selection)
-      vim.cmd("edit " .. vim.fn.fnameescape(selection.path))
+      vim.cmd("edit " .. vim.fn.fnameescape(selection[1].path))
     end,
     on_start = function(buf, sess, keyset)
       -- Horizontal split open

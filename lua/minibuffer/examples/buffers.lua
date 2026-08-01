@@ -14,6 +14,26 @@ local function create_preview(win)
     end
 end
 
+---@param raw_lines string[]
+---@return string[]
+local function normalize_lines(raw_lines)
+  local normalized = {}
+  for _, line in ipairs(raw_lines or {}) do
+    if type(line) == "string" then
+      line = line:gsub("\r", "")
+      if line:find("\n", 1, true) then
+        vim.list_extend(normalized, vim.split(line, "\n", { plain = true }))
+      else
+        normalized[#normalized + 1] = line
+      end
+    end
+  end
+  if #normalized == 0 then
+    normalized[1] = ""
+  end
+  return normalized
+end
+
 local function update_preview(scratch, win, buf)
   local win_height = vim.api.nvim_win_get_height(win)
   local lcount = vim.api.nvim_buf_line_count(buf)
@@ -29,6 +49,7 @@ local function update_preview(scratch, win, buf)
 
   -- Get lines
   local lines = vim.api.nvim_buf_get_lines(buf, start_line, end_line, false)
+  lines = normalize_lines(lines)
   if #lines == 0 then
     lines = { "[Empty buffer]" }
   end
@@ -96,7 +117,7 @@ return function()
   local minibuffer = require("minibuffer")
   minibuffer.select({
     resumable = true,
-    prompt = "Buffers:",
+    prompt = "Buffers: ",
     items = buffers,
     multi = false,
     allow_shrink = false,
@@ -117,7 +138,7 @@ return function()
       end)
     end,
     on_select = function(selection)
-      if selection[1].bufnr then
+      if selection[1] and selection[1].bufnr then
         vim.cmd("b " .. selection[1].bufnr)
       end
     end,

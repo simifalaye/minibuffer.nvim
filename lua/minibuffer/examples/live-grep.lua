@@ -12,6 +12,7 @@ local opts = {
     "--color=never",
     "--no-config",
     "--smart-case",
+    "--hidden",
     "--max-columns=300",
     "--max-columns-preview",
     "--colors=path:none",
@@ -110,7 +111,7 @@ return function(o)
   opts = vim.tbl_deep_extend("force", opts, o or {})
   require("minibuffer").select({
     resumable = true,
-    prompt = "Grep:",
+    prompt = "Grep: ",
     items = {},
     async_fetch = async_fetch,
     multi = true,
@@ -128,10 +129,7 @@ return function(o)
         vim.cmd("normal! zz")
       end
       if type(selection) == "table" and selection[1] and selection[1].file then
-        -- Multi selection -> jump to first match
         jump(selection[1])
-      elseif selection and selection.file then
-        jump(selection)
       end
     end,
     on_start = function(buf, sess, keyset)
@@ -176,7 +174,7 @@ return function(o)
           end
         end
         if #qf > 0 then
-          vim.fn.setqflist(qf, " ", { title = "Grep Results" })
+          vim.fn.setqflist({}, " ", { title = "Grep Results", items = qf })
           vim.cmd("copen")
         end
       end, { buffer = buf, noremap = true, silent = true })
