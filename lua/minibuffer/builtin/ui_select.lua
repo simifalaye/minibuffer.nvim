@@ -21,7 +21,17 @@ return function(items, opts, on_choice)
         return out
       end,
       on_select = function(result, idx)
-        on_choice(result, idx)
+        local item = result and result[1] or nil
+        local item_idx = nil
+        if item then
+          for i, it in ipairs(items) do
+            if it == item then
+              item_idx = i
+              break
+            end
+          end
+        end
+        on_choice(item, item_idx)
       end,
       on_cancel = function()
         on_choice(nil, nil)
