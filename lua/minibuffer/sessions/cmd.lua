@@ -91,6 +91,7 @@ local function build_command_ctx(text, pos)
     [";"] = true,
     ["|"] = true,
     ["`"] = true,
+    ["="] = true,
   }
 
   local is_lua = vim.startswith(text, "lua ") or vim.startswith(text, "luado ")
