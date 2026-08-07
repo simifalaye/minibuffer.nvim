@@ -26,6 +26,16 @@ local function start_session(session, force)
   state.pending_render = false
   state.active_window = vim.api.nvim_get_current_win()
 
+  vim.api.nvim_create_autocmd("FocusLost", {
+    callback = function()
+      vim.schedule(function()
+        if state.session then
+          state.session:close()
+        end
+      end)
+    end,
+  })
+
   session:pre_start()
   session:render()
   session:post_start()
