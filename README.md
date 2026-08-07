@@ -4,7 +4,7 @@
 
 A **highly experimental** general purpose interactive interface for neovim.
 
-https://github.com/user-attachments/assets/d69b3d3a-03d9-4285-aebb-23d1d895b831
+https://github.com/user-attachments/assets/5d6dea18-9f13-460e-954c-413ff4f4d302
 
 **NOTE**:
 
@@ -133,7 +133,7 @@ vim.keymap.set("n", "<leader>O", require("minibuffer.examples.oldfiles"))
 
 ## Which-key.nvim
 
-<img width="2534" height="1333" alt="which-key-integration" src="https://github.com/user-attachments/assets/636e0026-4e17-4bc8-9535-396fccb256fc" />
+<img width="2560" height="1440" alt="which-key nvim-integration" src="https://github.com/user-attachments/assets/993b040f-dcd9-4fb3-b861-1ad1f8fc2824" />
 
 ```lua
 -- Setup plugin with minibuffer window config
@@ -147,7 +147,7 @@ pcall(vim.api.nvim_set_hl, 0, "WhichKeyNormal", { link = "Normal" })
 
 ## FFF.nvim
 
-<img width="2542" height="1342" alt="fff-integration" src="https://github.com/user-attachments/assets/2fdacf4f-35ba-479f-adb8-cf8e39b7d512" />
+<img width="2560" height="1440" alt="fff nvim-integration" src="https://github.com/user-attachments/assets/2595ab60-e77c-4695-b26d-61b01b09d456" />
 
 ```lua
 -- NOTE: after loading plugin
@@ -164,7 +164,7 @@ end, { desc = "FFFGrep" })
 
 ## mini-pick.nvim
 
-<img width="2538" height="1333" alt="mini-pick-integration" src="https://github.com/user-attachments/assets/eec8c0f3-fc71-46ae-ba3e-bdbaceb4188c" />
+<img width="2560" height="1440" alt="mini pick-integration" src="https://github.com/user-attachments/assets/0fe78407-f95f-4223-85e7-bad07484a781" />
 
 ```lua
 local win_config = function()
