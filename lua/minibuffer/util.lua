@@ -7,6 +7,10 @@ end
 
 local M = {}
 
+function M.get_ext()
+  return ext
+end
+
 ---@return integer|nil
 function M.get_cmd_win()
   if ext.wins and ext.wins.cmd and vim.api.nvim_win_is_valid(ext.wins.cmd) then
@@ -63,50 +67,58 @@ function M.focus_cmd_win()
   return active_win
 end
 
----@param kind '"buf"'|'"win"'
+---@param kind '"buf"'|'"win"'|'"global"'
 ---@param optnames string[]
 ---@return table
 function M.save_cmd_opts(kind, optnames)
   local saved = {}
-  local scope = {}
+  local opts = {}
   if kind == "buf" then
     local buf = M.get_cmd_buf()
     if not buf then
       return {}
     end
-    scope.buf = buf
+    opts.buf = buf
   elseif kind == "win" then
     local win = M.get_cmd_win()
     if not win then
       return {}
     end
-    scope.win = win
+    opts.win = win
+  elseif kind == "global" then
+    opts.scope = "global"
+  else
+    error("Invalid option kind: " .. tostring(kind))
   end
   for _, name in ipairs(optnames) do
-    saved[name] = vim.api.nvim_get_option_value(name, scope)
+    saved[name] = vim.api.nvim_get_option_value(name, opts)
   end
   return saved
 end
 
----@param kind '"buf"'|'"win"'
+---@param kind '"buf"'|'"win"'|'"global"'
 ---@param opts table<string, any>
 function M.restore_cmd_opts(kind, opts)
-  local scope = {}
+  local api_opts = {}
   if kind == "buf" then
     local buf = M.get_cmd_buf()
     if not buf then
       return
     end
-    scope.buf = buf
+    api_opts.buf = buf
   elseif kind == "win" then
     local win = M.get_cmd_win()
     if not win then
       return
     end
-    scope.win = win
+    api_opts.win = win
+  elseif kind == "global" then
+    api_opts.scope = "global"
+  else
+    error("Invalid option kind: " .. tostring(kind))
   end
   for name, value in pairs(opts) do
-    vim.api.nvim_set_option_value(name, value, scope)
+    vim.api.nvim_set_option_value(name, value, api_opts)
   end
 end
 
@@ -157,6 +169,32 @@ function M.restore_window_sizes(win_sizes)
   win_sizes = {}
 end
 
+---@return table<integer, { buf: integer, view: vim.fn.winsaveview.ret }>
+function M.get_win_views()
+  local win_views = {}
+  local buf = -1
+  local view = nil
+  for _, win in ipairs(M.get_resizable_windows()) do
+    buf = vim.api.nvim_win_get_buf(win)
+    view = vim.api.nvim_win_call(win, function()
+      return vim.fn.winsaveview()
+    end)
+    win_views[win] = { buf = buf, view = view }
+  end
+  return win_views
+end
+
+---@param win_views table<integer, { buf: integer, view: vim.fn.winsaveview.ret }>
+function M.restore_win_views(win_views)
+  for win, d in pairs(win_views) do
+    if vim.api.nvim_win_is_valid(win) and vim.api.nvim_win_get_buf(win) == d.buf then
+      vim.api.nvim_win_call(win, function()
+        vim.fn.winrestview(d.view)
+      end)
+    end
+  end
+end
+
 ---@param win integer
 ---@param height integer
 ---@param set_cmdheight boolean
@@ -167,13 +205,11 @@ function M.set_win_height(win, height, set_cmdheight)
     vim.api.nvim_win_set_config(win, { hide = false, height = height })
   end
   if set_cmdheight and vim.o.cmdheight ~= height then
-    if height ~= 0 then
-      vim._with({ noautocmd = true, o = { splitkeep = "screen" } }, function()
-        vim.o.cmdheight = height
-      end)
-    else
-      vim.o.cmdheight = 0
-    end
+    -- Avoid moving the cursor with 'splitkeep' = "screen", and altering the user
+    -- configured value with noautocmd.
+    vim._with({ noautocmd = true, o = { splitkeep = "screen" } }, function()
+      vim.o.cmdheight = height
+    end)
     ext.msg.set_pos()
   end
 end
@@ -272,101 +308,17 @@ end
 ---@param ms integer
 ---@return fun(fn:fun())
 function M.make_debounced(ms)
-  local timer
+  local timer = vim.uv.new_timer()
   return function(fn)
-    if timer then
-      timer:stop()
-      timer:close()
-    end
-    timer = vim.uv.new_timer()
     if not timer then
       return
     end
+    timer:stop()
     timer:start(ms, 0, function()
       timer:stop()
-      timer:close()
-      timer = nil
       vim.schedule(fn)
     end)
   end
 end
-
--- --- Simple fuzzy match scoring function
--- ---@param str string
--- ---@param query string
--- ---@return integer? score
--- function M.fuzzy_score(str, query)
---   if query == "" then
---     return 0
---   end
---   if str == query then
---     return math.huge
---   end -- perfect match
---
---   local lower_str, lower_query = str:lower(), query:lower()
---   local score, consecutive, last_match = 0, 0, 0
---
---   for i = 1, #lower_query do
---     local qc = lower_query:sub(i, i)
---     local found = lower_str:find(qc, last_match + 1, true)
---     if not found then
---       return nil -- query char not found in order
---     end
---
---     -- base score
---     local char_score = 1
---
---     -- bonus: consecutive characters
---     if found == last_match + 1 then
---       consecutive = consecutive + 1
---       char_score = char_score + (consecutive * 2)
---     else
---       consecutive = 0
---     end
---
---     -- bonus: start of string or after separator
---     if found == 1 or str:sub(found - 1, found - 1):match("[%s%p_]") then
---       char_score = char_score + 3
---     end
---
---     -- bonus: case-sensitive match
---     if str:sub(found, found) == query:sub(i, i) then
---       char_score = char_score + 1
---     end
---
---     -- penalty: distance from last match
---     if last_match > 0 then
---       local gap = found - last_match - 1
---       if gap > 0 then
---         char_score = char_score - math.min(gap, 3) -- small penalty
---       end
---     end
---
---     score = score + char_score
---     last_match = found
---   end
---
---   return score
--- end
---
--- --- Simple fuzzy filter
--- ---@param items string[]
--- ---@param input string
--- ---@return {item:string,score:integer}[]
--- function M.fuzzy_filter(items, input)
---   local results = {}
---   for _, item in ipairs(items) do
---     local s = M.fuzzy_score(item, input)
---     if s then
---       table.insert(results, { item = item, score = s })
---     end
---   end
---   table.sort(results, function(a, b)
---     return a.score > b.score
---   end)
---   return vim.tbl_map(function(item)
---     return item.item
---   end, results)
--- end
 
 return M

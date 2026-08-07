@@ -1,66 +1,12 @@
-local function create_preview(win)
-  -- Save current window state
-  local cur_buf = vim.api.nvim_win_get_buf(win)
-
-  -- Create scratch buffer
-  local scratch = vim.api.nvim_create_buf(false, true)
-  vim.api.nvim_win_set_buf(win, scratch)
-
-  return scratch,
-    function()
-      if vim.api.nvim_win_is_valid(win) and vim.api.nvim_buf_is_valid(cur_buf) then
-        vim.api.nvim_win_set_buf(win, cur_buf)
-      end
-    end
-end
-
----@param raw_lines string[]
----@return string[]
-local function normalize_lines(raw_lines)
-  local normalized = {}
-  for _, line in ipairs(raw_lines or {}) do
-    if type(line) == "string" then
-      line = line:gsub("\r", "")
-      if line:find("\n", 1, true) then
-        vim.list_extend(normalized, vim.split(line, "\n", { plain = true }))
-      else
-        normalized[#normalized + 1] = line
-      end
-    end
+local function update_preview_win(win, buf)
+  if not vim.api.nvim_win_is_valid(win) then
+    return
   end
-  if #normalized == 0 then
-    normalized[1] = ""
+  if not vim.api.nvim_buf_is_valid(buf) then
+    return
   end
-  return normalized
-end
-
-local function update_preview(scratch, win, buf)
-  local win_height = vim.api.nvim_win_get_height(win)
-  local lcount = vim.api.nvim_buf_line_count(buf)
-
-  -- Get last known position mark
-  local mark = vim.api.nvim_buf_get_mark(buf, '"')
-  local cursor_line = mark[1] > 0 and mark[1] <= lcount and mark[1] or 1
-
-  -- Compute range around that line
-  local half = math.floor(win_height / 2)
-  local start_line = math.max(0, cursor_line - half - 1) -- 0-indexed
-  local end_line = math.min(lcount, start_line + win_height)
-
-  -- Get lines
-  local lines = vim.api.nvim_buf_get_lines(buf, start_line, end_line, false)
-  lines = normalize_lines(lines)
-  if #lines == 0 then
-    lines = { "[Empty buffer]" }
-  end
-
-  -- Write into scratch buffer
-  vim.api.nvim_buf_set_lines(scratch, 0, -1, false, lines)
-
-  -- Match filetype
-  local ft = vim.bo[buf].filetype
-  if ft ~= "" then
-    vim.bo[scratch].filetype = ft
+  if vim.api.nvim_win_get_buf(win) ~= buf then
+    vim.api.nvim_win_set_buf(win, buf)
   end
 end
 
@@ -68,12 +14,13 @@ end
 local function gather_buffers()
   local bufs = vim.fn.getbufinfo({ buflisted = 1 })
   local items = {}
-
   for _, info in ipairs(bufs) do
     if info.loaded == 1 then
-      local name = info.name ~= "" and info.name or "[No Name]"
+      local path = info.name
+      local name = path ~= "" and vim.fn.fnamemodify(path, ":t") or "[No Name]"
       items[#items + 1] = {
         bufnr = info.bufnr,
+        path = path,
         name = name,
         lastused = info.lastused or 0,
         changed = info.changed,
@@ -81,7 +28,6 @@ local function gather_buffers()
     end
   end
 
-  -- Sort by most recently used (descending)
   table.sort(items, function(a, b)
     return a.lastused > b.lastused
   end)
@@ -89,11 +35,27 @@ local function gather_buffers()
   return items
 end
 
+local bufnr_max_width = 4
+local bufnr_overflow_str = "999+"
+
 local function format_fn(item)
-  local display = string.format("%d  %s", item.bufnr, item.name)
+  local bufnr_str = tostring(item.bufnr)
+  local bufnr_len = #bufnr_str
+
+  if bufnr_len > bufnr_max_width then
+    bufnr_str = bufnr_overflow_str
+  else
+    bufnr_str = bufnr_str .. string.rep(" ", bufnr_max_width - bufnr_len)
+  end
+
   return {
-    { text = item.changed == 1 and "+ " or "  ", hl = "Changed" },
-    { text = display, hl = "Normal" },
+    { text = bufnr_str, hl = "Normal" },
+    { text = item.changed == 1 and " * " or "   ", hl = "Changed" },
+    { text = item.name, hl = "Normal" },
+    {
+      text = item.path ~= "" and ("  " .. item.path) or "",
+      hl = "Comment",
+    },
   }
 end
 
@@ -101,25 +63,45 @@ local function filter_fn(items, input)
   if input == "" then
     return items
   end
-  local results = {}
+
+  local names = {}
+  local lookup = {}
   for _, item in ipairs(items) do
-    if item.name:lower():find(input) then
-      results[#results + 1] = item
+    names[#names + 1] = item.name
+    lookup[item.name] = item
+  end
+
+  local matches = vim.fn.matchfuzzy(names, input)
+  local results = {}
+
+  for _, name in ipairs(matches) do
+    results[#results + 1] = lookup[name]
+  end
+
+  return results
+end
+
+local function get_replacement_buf(current)
+  for _, info in ipairs(vim.fn.getbufinfo({ buflisted = 1 })) do
+    if info.bufnr ~= current and info.loaded == 1 then
+      return info.bufnr
     end
   end
-  return results
+
+  return vim.api.nvim_create_buf(false, true)
 end
 
 return function()
   local active_win
   local buffers = gather_buffers()
-  local preview_buffer, restore_fn
   local minibuffer = require("minibuffer")
+  local prev_buf = vim.api.nvim_get_current_buf()
+
   minibuffer.select({
     resumable = true,
     prompt = "Buffers: ",
     items = buffers,
-    multi = false,
+    multi = true,
     allow_shrink = false,
     max_height = 15,
     format_fn = format_fn,
@@ -128,26 +110,35 @@ return function()
       if not active_win then
         return
       end
-      if not preview_buffer then
-        preview_buffer, restore_fn = create_preview(active_win)
+      if item and vim.api.nvim_buf_is_valid(item.bufnr) then
+        update_preview_win(active_win, item.bufnr)
       end
-      vim.schedule(function()
-        if item then
-          update_preview(preview_buffer, active_win, item.bufnr)
-        end
-      end)
     end,
     on_select = function(selection)
-      if selection[1] and selection[1].bufnr then
-        vim.cmd("b " .. selection[1].bufnr)
+      if #selection == 1 then
+        local item = selection[1]
+        if vim.api.nvim_buf_is_valid(item.bufnr) then
+          vim.api.nvim_set_current_buf(item.bufnr)
+        end
+        return
       end
+
+      local qf = {}
+      for _, item in ipairs(selection) do
+        qf[#qf + 1] = {
+          filename = item.path ~= "" and item.path or item.name,
+          text = "#" .. item.bufnr,
+        }
+      end
+      vim.fn.setqflist({}, " ", {
+        title = "Selected Buffers",
+        items = qf,
+      })
+      vim.cmd("copen")
     end,
     on_close = function()
-      if restore_fn then
-        restore_fn()
-      end
-      if preview_buffer and vim.api.nvim_buf_is_valid(preview_buffer) then
-        vim.api.nvim_buf_delete(preview_buffer, { force = true })
+      if active_win then
+        update_preview_win(active_win, prev_buf)
       end
     end,
     on_start = function(buf, sess, keyset)
@@ -156,37 +147,51 @@ return function()
         return
       end
 
-      -- Horizontal split open
+      -- Horizontal split
       keyset("i", "<C-s>", function()
         if sess.current_index > 0 then
           local item = sess.filtered_items[sess.current_index]
-          sess:close()
+
           if item and vim.api.nvim_buf_is_valid(item.bufnr) then
+            sess:close()
+
             vim.cmd("split")
             vim.api.nvim_set_current_buf(item.bufnr)
           end
         end
-      end, { buffer = buf, noremap = true, silent = true })
+      end, {
+        buffer = buf,
+        noremap = true,
+        silent = true,
+      })
 
-      -- Vertical split open
+      -- Vertical split
       keyset("i", "<C-v>", function()
         if sess.current_index > 0 then
           local item = sess.filtered_items[sess.current_index]
-          sess:close()
+
           if item and vim.api.nvim_buf_is_valid(item.bufnr) then
+            sess:close()
+
             vim.cmd("vsplit")
             vim.api.nvim_set_current_buf(item.bufnr)
           end
         end
-      end, { buffer = buf, noremap = true, silent = true })
+      end, {
+        buffer = buf,
+        noremap = true,
+        silent = true,
+      })
 
       -- Delete buffer
       keyset("i", "<C-d>", function()
         if sess.current_index > 0 then
           local item = sess.filtered_items[sess.current_index]
+
           if item and vim.api.nvim_buf_is_valid(item.bufnr) then
-            vim.cmd("bdelete " .. item.bufnr)
-            -- Refresh buffer list after deletion
+            update_preview_win(active_win, get_replacement_buf(item.bufnr))
+            vim.api.nvim_buf_delete(item.bufnr, {})
+
             sess.items = gather_buffers()
             sess.filtered_items = filter_fn(sess.items, sess.input)
             if #sess.filtered_items == 0 then
@@ -197,7 +202,20 @@ return function()
             sess:render()
           end
         end
-      end, { buffer = buf, noremap = true, silent = true })
+      end, {
+        buffer = buf,
+        noremap = true,
+        silent = true,
+      })
+    end,
+    footer_fn = function(items)
+      return {
+        { #items .. " items", "Normal" },
+        {
+          " C-x toggle, C-a toggle-all, C-s split, C-v vsplit, C-d delete, C-y accept, C-n next, C-p prev",
+          "Comment",
+        },
+      }
     end,
   })
 end

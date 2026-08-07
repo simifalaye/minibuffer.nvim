@@ -1,16 +1,25 @@
-local opts = { cwd = nil }
+---@class minibuffer.examples.OldfilesOpts
+---@field cwd string|nil
 
--- Collect recent files from v:oldfiles
-local function gather_oldfiles()
+---@class minibuffer.examples.OldfilesOpts
+local opts = {
+  cwd = nil,
+}
+
+local function is_in_cwd(path, cwd)
+  return vim.fs.relpath(cwd, path) ~= nil
+end
+
+local function gather_oldfiles(cwd)
   local files = vim.v.oldfiles or {}
   local items = {}
 
-  for idx, path in ipairs(files) do
+  cwd = cwd and vim.fn.fnamemodify(cwd, ":p")
+  for _, path in ipairs(files) do
+    path = vim.fn.fnamemodify(path, ":p")
     if vim.fn.filereadable(path) == 1 then
-      -- If cwd is set, only include files inside that directory
-      if not opts.cwd or vim.startswith(path, vim.fn.fnamemodify(opts.cwd, ":p")) then
+      if not cwd or is_in_cwd(path, cwd) then
         items[#items + 1] = {
-          index = idx,
           path = path,
           name = vim.fn.fnamemodify(path, ":t"),
         }
@@ -22,9 +31,10 @@ local function gather_oldfiles()
 end
 
 local function format_fn(item)
+  local dir = vim.fn.fnamemodify(item.path, ":h")
   return {
-    { text = "  " .. item.name, hl = "Normal" },
-    { text = " - " .. item.path, hl = "Comment" },
+    { text = item.name, hl = "Normal" },
+    { text = "  " .. dir, hl = "Comment" },
   }
 end
 
@@ -32,54 +42,103 @@ local function filter_fn(items, input)
   if input == "" then
     return items
   end
-  local results = {}
+
+  local paths = {}
+  local lookup = {}
+
   for _, item in ipairs(items) do
-    if item.path:lower():find(input, 1, true) or item.name:lower():find(input, 1, true) then
-      results[#results + 1] = item
-    end
+    paths[#paths + 1] = item.path
+    lookup[item.path] = item
   end
+  local matches = vim.fn.matchfuzzy(paths, input)
+
+  local results = {}
+  for _, path in ipairs(matches) do
+    results[#results + 1] = lookup[path]
+  end
+
   return results
 end
 
+---@param o minibuffer.examples.OldfilesOpts
 return function(o)
   opts = vim.tbl_deep_extend("force", opts, o or {})
 
-  local oldfiles = gather_oldfiles()
-  local minibuffer = require("minibuffer")
-  minibuffer.select({
+  local oldfiles = gather_oldfiles(opts.cwd)
+
+  require("minibuffer").select({
     resumable = true,
     prompt = "Oldfiles: ",
     items = oldfiles,
-    multi = false,
+    multi = true,
     allow_shrink = false,
     max_height = 15,
     format_fn = format_fn,
     filter_fn = filter_fn,
     on_select = function(selection)
-      vim.cmd("edit " .. vim.fn.fnameescape(selection[1].path))
+      if #selection == 1 then
+        local item = selection[1]
+        vim.cmd("edit " .. vim.fn.fnameescape(item.path))
+        vim.cmd('normal! g`"')
+        return
+      end
+
+      local qf = {}
+      for _, item in ipairs(selection) do
+        qf[#qf + 1] = {
+          filename = item.path,
+        }
+      end
+
+      vim.fn.setqflist({}, " ", {
+        title = "Selected Oldfiles",
+        items = qf,
+      })
+      vim.cmd("copen")
     end,
     on_start = function(buf, sess, keyset)
-      -- Horizontal split open
+      -- Horizontal split
       keyset("i", "<C-s>", function()
         if sess.current_index > 0 then
           local item = sess.filtered_items[sess.current_index]
-          sess:close()
+
           if item then
+            sess:close()
+
             vim.cmd("split " .. vim.fn.fnameescape(item.path))
+            vim.cmd('normal! g`"')
           end
         end
-      end, { buffer = buf, noremap = true, silent = true })
+      end, {
+        buffer = buf,
+        noremap = true,
+        silent = true,
+      })
 
-      -- Vertical split open
+      -- Vertical split
       keyset("i", "<C-v>", function()
         if sess.current_index > 0 then
           local item = sess.filtered_items[sess.current_index]
-          sess:close()
           if item then
+            sess:close()
             vim.cmd("vsplit " .. vim.fn.fnameescape(item.path))
+            vim.cmd('normal! g`"')
           end
         end
-      end, { buffer = buf, noremap = true, silent = true })
+      end, {
+        buffer = buf,
+        noremap = true,
+        silent = true,
+      })
+    end,
+    footer_fn = function(items)
+      return {
+        { #items .. " items", "Normal" },
+        {
+          " C-x toggle, C-a toggle-all, C-s split, C-v vsplit, C-d delete, C-y accept, C-n next, C-p prev",
+          "Comment",
+        },
+      }
     end,
   })
 end

@@ -1,6 +1,12 @@
 local M = {}
 
+---@class minibuffer.config.cmd
+---@field enabled boolean|nil
+---@field dynamic_height boolean|nil
+---@field max_height integer|nil
+
 ---@class minibuffer.config
+---@field cmd minibuffer.config.cmd|nil
 
 ---@class minibuffer.config.State
 local state = {
@@ -10,7 +16,13 @@ local state = {
 
 local function init()
   local config = vim.g.minibuffer or {}
-  local default_config = {}
+  local default_config = {
+    cmd = {
+      enabled = true,
+      dynamic_height = false,
+      max_height = 15,
+    },
+  }
 
   local merged_config = vim.tbl_deep_extend("force", default_config, config)
 

@@ -8,11 +8,11 @@ https://github.com/user-attachments/assets/d69b3d3a-03d9-4285-aebb-23d1d895b831
 
 **NOTE**:
 
-- This plugin is still under development
+- This plugin is still under development and will see some breaking changes (feel free to pin to a commit)
 - It depends on an experimental feature in neovim (`vim._core.ui2`)
 
-This plugin provides an api for an optional unified interactive buffer interface.
-Instead of having one plugin open a floating popup for fuzzy file search, another showing a completion menu at the bottom, another drawing commandline completions above the status bar and yet another drawing a general purpose picker in a different location, you can choose to have one place where interactive input can be shown that feels native to the editor and is predictable.
+This plugin provides an API for an optional unified interactive buffer interface.
+Instead of having one plugin open a floating pop-up for fuzzy file search, another showing a completion menu at the bottom, another drawing commandline completions above the status bar and yet another drawing a general purpose picker in a different location, you can choose to have one place where interactive input can be shown that feels native to the editor and is predictable.
 This includes:
 
 - Running commands with completion.
@@ -28,8 +28,7 @@ For Neovim, something like this could replace the ad-hoc popup/floating windows 
 
 The goal of this plugin is to eventually put some form of `lua/minibuffer/core.lua` into neovim core if desired by the maintainers.
 
-Since this interface exists as plugin for now, it will require an integration layer with other plugins to use their backend.
-I have integration implementations in `lua/minibuffer/integrations`.
+I have integration implementations in `lua/minibuffer/integrations` with existing plugins.
 
 # Prerequisites
 
@@ -42,7 +41,7 @@ require("vim._core.ui2").enable({ enable = true, msg = { target = "msg" } })
 
 # Installation
 
-**MAKE SURE YOU HAVE ENABLED vim.\_core.ui2 (See prerequisites)**
+**NOTE:** You will want to load minibuffer.nvim as one of your earliest plugins (DO NOT LAZY LOAD).
 
 - vim.pack
 
@@ -58,9 +57,7 @@ local minibuffer = require("minibuffer")
 vim.ui.select = require("minibuffer.builtin.ui_select")
 vim.ui.input = require("minibuffer.builtin.ui_input")
 
-vim.keymap.set("n", "<M-;>", ":")
-vim.keymap.set("n", ":", require("minibuffer.builtin.cmdline"))
-vim.keymap.set("n", "<M-.>", function()
+vim.keymap.set("n", "<leader><CR>", function()
   minibuffer.resume(true)
 end)
 ```
@@ -78,9 +75,7 @@ MiniDeps.now(function()
   vim.ui.select = require("minibuffer.builtin.ui_select")
   vim.ui.input = require("minibuffer.builtin.ui_input")
 
-  vim.keymap.set("n", "<M-;>", ":")
-  vim.keymap.set("n", ":", require("minibuffer.builtin.cmdline"))
-  vim.keymap.set("n", "<M-.>", function()
+  vim.keymap.set("n", "<leader><CR>", function()
     minibuffer.resume(true)
   end)
 end)
@@ -97,12 +92,24 @@ end)
     vim.ui.select = require("minibuffer.builtin.ui_select")
     vim.ui.input = require("minibuffer.builtin.ui_input")
 
-    vim.keymap.set("n", "<M-;>", ":")
-    vim.keymap.set("n", ":", require("minibuffer.builtin.cmdline"))
-    vim.keymap.set("n", "<M-.>", function()
+    vim.keymap.set("n", "<leader><CR>", function()
       minibuffer.resume(true)
     end)
   end,
+}
+```
+
+# Configuration
+
+This plugin can be configured by using `vim.g.minibuffer` (preferably set before the plugin loads).
+```lua
+-- Default configuration
+vim.g.minibuffer = {
+  cmd = {
+    enabled = true, -- Enable command line wildmenu replacement through the minibuffer
+    dynamic_height = false, -- Automatically shrink and grow the command window as suggestions change
+    max_height = 15, -- Maximum height when using the command line
+   },
 }
 ```
 
@@ -169,10 +176,16 @@ local win_config = function()
   return ret
 end
 
--- Setup plugin with minibuffer window config
+local default_ui_select = vim.ui.select
+
+-- Setup plugin with minibuffer window configuration
 pick.setup({
   window = { config = win_config },
 })
+
+-- NOTE: mini-pick's setup forces itself as the default `ui_select` function.
+-- You will need to save the old one before and restore it after `setup()` if you wish to use the default minibuffer `ui_select`.
+vim.ui.select = default_ui_select
 
 -- Set highlights to match command window
 pcall(vim.api.nvim_set_hl, 0, "MiniPickBorder", { link = "Normal" })
