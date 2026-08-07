@@ -147,8 +147,12 @@ function DisplaySession:close()
   util.restore_win_views(state.win_views)
 
   state.cleanup()
-  if self.on_close then
-    pcall(self.on_close)
+
+  local cb = self.on_close
+  if cb then
+    vim.schedule(function()
+      pcall(cb)
+    end)
   end
 end
 

@@ -112,7 +112,7 @@ end
 
 ---@return boolean
 function InputSession:overridable()
-  return false
+  return true
 end
 
 function InputSession:pre_start()
@@ -331,9 +331,14 @@ function InputSession:post_start()
 end
 
 function InputSession:cancel()
+  local cb = self.on_cancel
+
   self:close()
-  if self.on_cancel then
-    pcall(self.on_cancel)
+
+  if cb then
+    vim.schedule(function()
+      pcall(cb)
+    end)
   end
 end
 
@@ -372,8 +377,11 @@ function InputSession:close()
   util.restore_win_views(state.win_views)
   state.cleanup()
 
-  if self.on_close then
-    pcall(self.on_close)
+  local cb = self.on_close
+  if cb then
+    vim.schedule(function()
+      pcall(cb)
+    end)
   end
 end
 
@@ -492,9 +500,14 @@ end
 
 function InputSession:submit()
   local final = self.input
+  local cb = self.on_submit
+
   self:close()
-  if self.on_submit then
-    pcall(self.on_submit, final)
+
+  if cb then
+    vim.schedule(function()
+      pcall(cb, final)
+    end)
   end
 end
 

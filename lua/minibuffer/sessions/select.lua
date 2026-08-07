@@ -108,7 +108,7 @@ end
 
 ---@return boolean
 function SelectSession:overridable()
-  return false
+  return true
 end
 
 function SelectSession:pre_start()
@@ -352,9 +352,14 @@ function SelectSession:post_start()
 end
 
 function SelectSession:cancel()
+  local cb = self.on_cancel
+
   self:close()
-  if self.on_cancel then
-    pcall(self.on_cancel)
+
+  if cb then
+    vim.schedule(function()
+      pcall(cb)
+    end)
   end
 end
 
@@ -396,8 +401,11 @@ function SelectSession:close()
 
   state.cleanup()
 
-  if self.on_close then
-    pcall(self.on_close)
+  local cb = self.on_close
+  if cb then
+    vim.schedule(function()
+      pcall(cb)
+    end)
   end
 end
 
@@ -475,9 +483,14 @@ function SelectSession:accept()
     end
   end
 
+  local cb = self.on_select
+
   self:close()
-  if self.on_select then
-    pcall(self.on_select, result, idx)
+
+  if cb then
+    vim.schedule(function()
+      pcall(cb, result, idx)
+    end)
   end
 end
 
