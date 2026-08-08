@@ -92,6 +92,7 @@ local function build_command_ctx(text, pos)
     ["|"] = true,
     ["`"] = true,
     ["="] = true,
+    ["!"] = true,
   }
 
   local is_lua = vim.startswith(text, "lua ") or vim.startswith(text, "luado ")
@@ -486,6 +487,7 @@ function CmdSession:post_start()
   local history_type = get_cmd_type(self.firstc)
   local hist_idx = vim.fn.histnr(history_type) + 1
   local saved_input = nil
+  local current_history_item = nil
 
   local function prev_cmd()
     -- First time entering history: save the current input.
@@ -498,7 +500,9 @@ function CmdSession:post_start()
       hist_idx = hist_idx - 1
     end
 
-    return vim.fn.histget(history_type, hist_idx)
+    current_history_item = vim.fn.histget(history_type, hist_idx)
+
+    return current_history_item
   end
 
   local function next_cmd()
@@ -510,30 +514,37 @@ function CmdSession:post_start()
 
     if hist_idx < newest then
       hist_idx = hist_idx + 1
-      return vim.fn.histget(history_type, hist_idx)
+      current_history_item = vim.fn.histget(history_type, hist_idx)
+      return current_history_item
     end
 
     -- We've moved past the newest history entry back to the
     -- user's original input.
     local i = saved_input
     saved_input = nil
+    current_history_item = nil
     hist_idx = newest + 1
 
     return i
   end
 
+  -- Smart select:
+  -- * When there is no cmdline input, move through history
+  -- * While the history item hasn't been modified by the user, continue moving through history
+  -- * Else select suggestions
   local function move_prev()
-    if self.input:len() == 0 or saved_input then
+    if self.input:len() == 0 or current_history_item == self.input then
       self:set_input(prev_cmd())
     else
+      current_history_item = nil
       self:move(-1)
     end
   end
-
   local function move_next()
-    if self.input:len() == 0 or saved_input then
+    if self.input:len() == 0 or current_history_item == self.input then
       self:set_input(next_cmd())
     else
+      current_history_item = nil
       self:move(1)
     end
   end
