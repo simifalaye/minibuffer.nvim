@@ -87,6 +87,8 @@ return function(o)
       for _, item in ipairs(selection) do
         qf[#qf + 1] = {
           filename = item.path,
+          lnum = 1,
+          col = 1,
         }
       end
 
@@ -97,7 +99,6 @@ return function(o)
       vim.cmd("copen")
     end,
     on_start = function(buf, sess, keyset)
-      -- Horizontal split
       keyset("i", "<C-s>", function()
         if sess.current_index > 0 then
           local item = sess.filtered_items[sess.current_index]
@@ -114,8 +115,6 @@ return function(o)
         noremap = true,
         silent = true,
       })
-
-      -- Vertical split
       keyset("i", "<C-v>", function()
         if sess.current_index > 0 then
           local item = sess.filtered_items[sess.current_index]

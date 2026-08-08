@@ -1,113 +1,87 @@
----@class minibuffer.examples.FilesGrepOpts
----@field rg_opts string[]|nil
----@field cwd string|nil
+---@class minibuffer.examples.GitFilesOpts
+---@field cwd? string
+---@field show_untracked? boolean
 
-if vim.fn.executable("rg") == 0 then
-  vim.notify("rg is required for using the files picker")
-  return function() end
-end
-
-local util = require("minibuffer.util")
-
----@type minibuffer.examples.FilesGrepOpts
+---@type minibuffer.examples.GitFilesOpts
 local opts = {
-  rg_opts = {
-    "rg",
-    "--files",
-    "--hidden",
-    "--color",
-    "never",
-    "-g",
-    "!.git",
-  },
   cwd = nil,
 }
 
-local debounce = util.make_debounced(50)
-
-local all_files = {} ---@type string[]
-local loading = false
-local loaded_cwd = nil
-
--- Format each file path: directory part in Comment, filename normal
 local function format_fn(item)
-  local name = item:match("([^/]+)$") or item
-  local dir = item:sub(1, #item - #name)
-
   return {
-    { text = dir, hl = "Comment" },
-    { text = name, hl = "Normal" },
+    { text = item, hl = "Normal" },
   }
 end
 
--- Use vim's fuzzy matcher
 local function filter_fn(items, input)
   if input == "" then
     return items
   end
-
   return vim.fn.matchfuzzy(items, input)
 end
 
--- Load all files once using rg
-local function load_files(cb)
-  if loading then
-    return
-  end
-
-  if #all_files > 0 and loaded_cwd == opts.cwd then
-    cb(all_files)
-    return
-  end
-
-  loading = true
-
-  local cmd = vim.list_extend({}, opts.rg_opts)
-  local proc_opts = { text = true }
-  if opts.cwd then
-    proc_opts.cwd = opts.cwd
-  end
-
-  vim.system(cmd, proc_opts, function(res)
-    loading = false
-    if res.code ~= 0 or not res.stdout then
-      all_files = {}
-    else
-      all_files = vim.split(res.stdout, "\n", { trimempty = true })
-    end
-    loaded_cwd = opts.cwd
-    cb(all_files)
-  end)
-end
-
-local function async_fetch(input, cb)
-  debounce(function()
-    load_files(function(files)
-      if input == "" then
-        cb(files)
-        return
-      end
-      cb(vim.fn.matchfuzzy(files, input))
-    end)
-  end)
-end
-
----@param o minibuffer.examples.FilesGrepOpts
+---@param o? minibuffer.examples.GitFilesOpts
 return function(o)
   opts = vim.tbl_deep_extend("force", opts, o or {})
+  local cwd = vim.fn.fnamemodify(opts.cwd or vim.fn.getcwd(), ":p")
+  local show_untracked = opts.show_untracked == true
 
-  all_files = {}
-  loaded_cwd = nil
+  local git = vim
+    .system({
+      "git",
+      "-C",
+      cwd,
+      "rev-parse",
+      "--is-inside-work-tree",
+    }, {
+      text = true,
+    })
+    :wait()
+  if git.code ~= 0 or vim.trim(git.stdout or "") ~= "true" then
+    vim.notify(("Not a git repository: %s"):format(cwd), vim.log.levels.ERROR)
+    return
+  end
+
   require("minibuffer").select({
     resumable = true,
-    prompt = "Files: ",
+    prompt = "Git Files: ",
     items = {},
-    async_fetch = async_fetch,
     multi = true,
     allow_shrink = false,
     max_height = 15,
     format_fn = format_fn,
     filter_fn = filter_fn,
+    async_fetch = function(_, cb)
+      local g_opts = {
+        "git",
+        "-C",
+        cwd,
+        "ls-files",
+        "--cached",
+        "--exclude-standard",
+      }
+      if show_untracked then
+        table.insert(g_opts, "--others")
+      end
+      vim.system(g_opts, {
+        text = true,
+      }, function(result)
+        if result.code ~= 0 then
+          vim.schedule(function()
+            cb({})
+          end)
+          return
+        end
+
+        local items = vim.split(result.stdout or "", "\n", {
+          trimempty = true,
+        })
+
+        vim.schedule(function()
+          cb(items)
+        end)
+      end)
+    end,
     on_select = function(selection)
       if #selection == 1 then
         vim.cmd("edit " .. vim.fn.fnameescape(selection[1]))
@@ -118,6 +92,8 @@ return function(o)
       for _, item in ipairs(selection) do
         qf[#qf + 1] = {
           filename = item,
+          lnum = 1,
+          col = 1,
         }
       end
 

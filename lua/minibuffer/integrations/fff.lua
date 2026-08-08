@@ -85,6 +85,8 @@ function M.file_search(opts)
       for _, item in ipairs(selection) do
         qf[#qf + 1] = {
           filename = item.relative_path,
+          lnum = 1,
+          col = 1,
         }
       end
       vim.fn.setqflist({}, " ", { title = "Selected Files", items = qf })

@@ -120,13 +120,89 @@ I have written a few usable examples for this interface for demonstration.
 ## Custom Pickers
 
 ```lua
-vim.keymap.set("n", "<leader>.", require("minibuffer.examples.files"))
-vim.keymap.set("n", "<leader>,", require("minibuffer.examples.buffers"))
-vim.keymap.set("n", "<leader>/", require("minibuffer.examples.live-grep"))
-vim.keymap.set("n", "<leader>o", function()
+vim.keymap.set("n", "<leader>;", function()
+  require("minibuffer.examples.history")({ type = "cmd" })
+end, { desc = "Find command history" })
+vim.keymap.set("n", "<leader>?", function()
+  require("minibuffer.examples.history")({ type = "search" })
+end, { desc = "Find command history" })
+vim.keymap.set("n", "<leader>'", function()
+  require("minibuffer.examples.marks")()
+end, { desc = "Find mark" })
+vim.keymap.set(
+  "n",
+  "<leader>/",
+  require("minibuffer.examples.live-grep"),
+  { desc = "Live grep" }
+)
+
+vim.keymap.set(
+  "n",
+  "<leader>fb",
+  require("minibuffer.examples.buffers"),
+  { desc = "Find buffers" }
+)
+vim.keymap.set(
+  "n",
+  "<leader>ff",
+  require("minibuffer.examples.files"),
+  { desc = "Find files" }
+)
+vim.keymap.set("n", "<leader>fd", function()
+  require("minibuffer.examples.diagnostics")({ scope = "buffer" })
+end, { desc = "Find diagnostics" })
+vim.keymap.set("n", "<leader>fD", function()
+  require("minibuffer.examples.diagnostics")({ scope = "workspace" })
+end, { desc = "Find diagnostics (workspace)" })
+vim.keymap.set(
+  "n",
+  "<leader>fg",
+  require("minibuffer.examples.git-files"),
+  { desc = "Find gitfiles" }
+)
+vim.keymap.set("n", "<leader>fl", function()
+  require("minibuffer.examples.list")({ type = "loclist" })
+end, { desc = "Find in loclist" })
+vim.keymap.set(
+  "n",
+  "<leader>fm",
+  require("minibuffer.examples.manpages"),
+  { desc = "Find manpages" }
+)
+vim.keymap.set("n", "<leader>fo", function()
   require("minibuffer.examples.oldfiles")({ cwd = vim.fn.getcwd() })
-end)
-vim.keymap.set("n", "<leader>O", require("minibuffer.examples.oldfiles"))
+end, { desc = "Find oldfiles (cwd)" })
+vim.keymap.set(
+  "n",
+  "<leader>fO",
+  require("minibuffer.examples.oldfiles"),
+  { desc = "Find oldfiles (all)" }
+)
+vim.keymap.set("n", "<leader>fq", function()
+  require("minibuffer.examples.list")({ type = "quickfix" })
+end, { desc = "Find in quickfix" })
+```
+
+## Interesting things you can do when using the minibuffer command line
+
+**Doom-emacs M-x file explorer picker**
+
+```lua
+vim.keymap.set("n", "<leader>.", function()
+  local buf_path = vim.api.nvim_buf_get_name(0)
+  local dir = vim.fn.fnamemodify(buf_path, ":p:h")
+  if dir == "" then
+    dir = "."
+  end
+  local cmd = ":e " .. vim.fn.fnameescape(dir) .. "/"
+  vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes(cmd, true, false, true), "n", true)
+end, { desc = "Find file" })
+```
+
+**Pick help-tags**
+
+```lua
+vim.keymap.set("n", "<leader>hh", ":h ", { desc = "Help" })
 ```
 
 # Integrations with existing plugins

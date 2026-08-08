@@ -87,8 +87,17 @@ local function get_replacement_buf(current)
       return info.bufnr
     end
   end
-
   return vim.api.nvim_create_buf(false, true)
+end
+
+local function remove_buffer(items, bufnr)
+  local result = {}
+  for _, item in ipairs(items) do
+    if item.bufnr ~= bufnr then
+      result[#result + 1] = item
+    end
+  end
+  return result
 end
 
 return function()
@@ -133,6 +142,8 @@ return function()
       vim.fn.setqflist({}, " ", {
         title = "Selected Buffers",
         items = qf,
+        lnum = 1,
+        col = 1,
       })
       vim.cmd("copen")
     end,
@@ -147,7 +158,6 @@ return function()
         return
       end
 
-      -- Horizontal split
       keyset("i", "<C-s>", function()
         if sess.current_index > 0 then
           local item = sess.filtered_items[sess.current_index]
@@ -164,8 +174,6 @@ return function()
         noremap = true,
         silent = true,
       })
-
-      -- Vertical split
       keyset("i", "<C-v>", function()
         if sess.current_index > 0 then
           local item = sess.filtered_items[sess.current_index]
@@ -182,8 +190,6 @@ return function()
         noremap = true,
         silent = true,
       })
-
-      -- Delete buffer
       keyset("i", "<C-d>", function()
         if sess.current_index > 0 then
           local item = sess.filtered_items[sess.current_index]
@@ -192,7 +198,7 @@ return function()
             update_preview_win(active_win, get_replacement_buf(item.bufnr))
             vim.api.nvim_buf_delete(item.bufnr, {})
 
-            sess.items = gather_buffers()
+            sess.items = remove_buffer(sess.items, item.bufnr)
             sess.filtered_items = filter_fn(sess.items, sess.input)
             if #sess.filtered_items == 0 then
               sess.current_index = 0
