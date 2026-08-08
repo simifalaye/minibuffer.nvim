@@ -26,7 +26,7 @@ For Neovim, something like this could replace the ad-hoc popup/floating windows 
 
 # Goal
 
-The goal of this plugin is to eventually put some form of `lua/minibuffer/core.lua` into neovim core if desired by the maintainers.
+The goal of this plugin is to eventually put some simple version of this into neovim core if desired by the maintainers. See [this issue](https://github.com/neovim/neovim/issues/35456)
 
 I have integration implementations in `lua/minibuffer/integrations` with existing plugins.
 
