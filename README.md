@@ -272,3 +272,12 @@ pcall(vim.api.nvim_set_hl, 0, "MiniPickHeader", { link = "Normal" })
 -- Use mini.pick's internal resume function to resume the picker
 vim.keymap.set("n", "<leader><CR>", "<cmd>Pick resume<CR>", { desc = "Resume Picker" })
 ```
+
+# Developer Notes
+
+API documentation for the various minibuffer session types and overall plugin will come as the API stabilizes a bit more.
+As such, please refer to the following files/directories that contain the type definitions/options:
+* `lua/minibuffer/types.lua`
+- `lua/minibuffer/sessions/*`
+
+For examples on how the options can be used, see `lua/minibuffer/examples/*`
