@@ -273,6 +273,35 @@ pcall(vim.api.nvim_set_hl, 0, "MiniPickHeader", { link = "Normal" })
 vim.keymap.set("n", "<leader><CR>", "<cmd>Pick resume<CR>", { desc = "Resume Picker" })
 ```
 
+# Statusline Integration
+
+You may notice that when the minibuffer is open in an interactive session (such as select or input), the 'inactive' statusline is shown.
+This is because you are focussed on another command window (which doesn't draw another statusline) and so you need to tell your statusline code which window to draw the active statusline for.
+Minibuffer keeps track of the last window that was in use before it opened `get_active_window()`.
+You can use this function to determine whether to draw the active/inactive statusline for a window.
+I have this code setup in my statusline config to determine whether to draw the inactive statusline (return `true` means draw the inactive statusline for this window):
+```lua
+local winid = vim.api.nvim_get_current_win()
+local curwin = tonumber(vim.g.actual_curwin)
+-- If this is the active window then don't display inactive statusline
+if winid == curwin then
+  return false
+end
+-- If the current window is a floating, then look at the previously accessed window
+if vim.api.nvim_win_get_config(winid).relative ~= "" then
+  local prev = vim.fn.win_getid(vim.fn.winnr("#"))
+  if prev == curwin then
+    return false
+  end
+end
+-- If the minibuffer is active, determine whether this was the last active window
+local mb_ok, mb = pcall(require, "minibuffer")
+if mb_ok and mb.get_active_window() == winid then
+  return false
+end
+return true
+```
+
 # Developer Notes
 
 API documentation for the various minibuffer session types and overall plugin will come as the API stabilizes a bit more.
