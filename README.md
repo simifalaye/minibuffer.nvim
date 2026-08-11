@@ -209,7 +209,7 @@ vim.keymap.set("n", "<leader>hh", ":h ", { desc = "Help" })
 
 Two integration types can be seen below:
 - Using the backend of a plugin with the minibuffer frontend APIs (as seen in the fff.nvim example below)
-- Allowing each plugin to draw their own window but configuring the window settings to put it into the minibuffer container (as seen in the which-key.nvim and mini.pick examples below)
+- Allowing each plugin to draw their own window but configuring the window settings to put it into the minibuffer container (as seen in the which-key.nvim, mini.pick and fzf.lua examples below)
 
 When possible, the first option is preferred.
 Some plugins don't expose their data fetching code through their public APIs an in such cases the second option can be used.
@@ -288,6 +288,46 @@ pcall(vim.api.nvim_set_hl, 0, "MiniPickHeader", { link = "Normal" })
 
 -- Use mini.pick's internal resume function to resume the picker
 vim.keymap.set("n", "<leader><CR>", "<cmd>Pick resume<CR>", { desc = "Resume Picker" })
+```
+
+## fzf.lua
+
+```lua
+require("fzf-lua").setup({
+  fzf_opts = {
+    ["--no-separator"] = true,
+  },
+  winopts = function()
+    return {
+      height = 0.35,
+      width = 1,
+      row = 0.35,
+      col = 0.50,
+      border = "none",
+      backdrop = 100,
+      relative = "minibuffer",
+      use_minibuffer = true,
+      winhl = true,
+    }
+  end,
+  hls = {
+    normal = "Normal",
+  },
+  -- Depending on your fzf-lua version/config structure,
+  -- this is best applied to the individual pickers:
+  files = {
+    previewer = false,
+  },
+  buffers = {
+    previewer = false,
+  },
+  grep = {
+    previewer = false,
+  },
+  live_grep = {
+    previewer = false,
+  },
+})
 ```
 
 # Statusline Integration
