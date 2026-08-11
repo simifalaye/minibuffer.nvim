@@ -178,7 +178,7 @@ function M.initialize()
   -- Wrap win config functions to detect buffers destined for the minibuffer
   ---@diagnostic disable-next-line: duplicate-set-field
   vim.api.nvim_open_win = function(buf, enter, opts)
-    if opts.use_minibuffer then
+    if opts.use_minibuffer or opts.relative == "minibuffer" then
       ---@diagnostic disable-next-line: inject-field
       opts.use_minibuffer = nil
       local s = require("minibuffer.sessions.scratch").new({

@@ -207,6 +207,19 @@ vim.keymap.set("n", "<leader>hh", ":h ", { desc = "Help" })
 
 # Integrations with existing plugins
 
+Two integration types can be seen below:
+- Using the backend of a plugin with the minibuffer frontend APIs (as seen in the fff.nvim example below)
+- Allowing each plugin to draw their own window but configuring the window settings to put it into the minibuffer container (as seen in the which-key.nvim and mini.pick examples below)
+
+When possible, the first option is preferred.
+Some plugins don't expose their data fetching code through their public APIs an in such cases the second option can be used.
+This is done by using some specific markers in the window configuration to allow us to know which windows should be drawn in the minibuffer container.
+There are two markers supported in the window configuration:
+- Setting the `use_minibuffer = true`
+- Setting `relative = "minibuffer"`
+
+I recommend using both at the same time to ensure that none of the markers are overridden by the plugin's configuration setup.
+
 ## Which-key.nvim
 
 <img width="2560" height="1440" alt="which-key nvim-integration" src="https://github.com/user-attachments/assets/993b040f-dcd9-4fb3-b861-1ad1f8fc2824" />
@@ -214,7 +227,10 @@ vim.keymap.set("n", "<leader>hh", ":h ", { desc = "Help" })
 ```lua
 -- Setup plugin with minibuffer window config
 require("which-key").setup({
-  win = { use_minibuffer = true },
+  win = { 
+    relative = "minibuffer",
+    use_minibuffer = true,
+  },
 })
 
 -- Set highlights to match command window
@@ -247,6 +263,7 @@ local win_config = function()
   local ret = {
     border = { " ", " ", " ", " ", " ", " ", " ", " " },
     width = vim.o.columns,
+    relative = "minibuffer",
     use_minibuffer = true,
   }
   return ret
