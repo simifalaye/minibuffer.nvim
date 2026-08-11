@@ -124,9 +124,6 @@ function ScratchSession:close()
     if vim.api.nvim_win_is_valid(self._win) then
       pcall(vim.api.nvim_win_close, self._win, true)
     end
-    if self.buf and vim.api.nvim_buf_is_valid(self.buf) then
-      pcall(vim.api.nvim_buf_delete, self.buf, { force = true })
-    end
     self._win = -1
 
     local win = util.get_cmd_win()
