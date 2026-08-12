@@ -53,7 +53,6 @@ function ScratchSession:pre_start()
   state.win_views = util.get_win_views()
 
   util.wipe_cmd_buffer()
-  util.enable_cmd_buffer_ts(false)
 end
 
 function ScratchSession:render()

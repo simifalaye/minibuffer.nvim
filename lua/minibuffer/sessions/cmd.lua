@@ -377,7 +377,8 @@ function CmdSession:pre_start()
     row = vim.o.lines - 1,
     col = 0,
     style = "minimal",
-    zindex = 999,
+    zindex = vim.api.nvim_win_get_config(win).zindex + 1,
+    border = "none",
   })
   vim.api.nvim_win_call(self.display.win, function()
     vim.api.nvim_set_option_value("filetype", "", { scope = "local" })

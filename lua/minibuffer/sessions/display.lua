@@ -76,7 +76,6 @@ function DisplaySession:pre_start()
   end
 
   util.wipe_cmd_buffer()
-  util.enable_cmd_buffer_ts(false)
 end
 
 function DisplaySession:render()

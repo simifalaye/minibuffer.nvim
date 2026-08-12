@@ -41,9 +41,8 @@ function M.wipe_cmd_buffer()
   pcall(vim.api.nvim_buf_clear_namespace, buf, ext.ns, 0, -1)
 end
 
-function M.enable_cmd_buffer_ts(enable)
-  local buf = M.get_cmd_buf()
-  if not buf then
+function M.enable_buffer_ts(buf, enable)
+  if not vim.api.nvim_buf_is_valid(buf) then
     return
   end
   local parser = assert(vim.treesitter.get_parser(ext.bufs.cmd, "vim", {}))
@@ -51,13 +50,13 @@ function M.enable_cmd_buffer_ts(enable)
   highlighter.active[ext.bufs.cmd] = enable and highlighter or nil
 end
 
+---@param win integer
 ---@return integer|nil
-function M.focus_cmd_win()
-  local active_win = vim.api.nvim_get_current_win()
-  local win = M.get_cmd_win()
-  if not win then
+function M.focus_win(win)
+  if not vim.api.nvim_win_is_valid(win) then
     return nil
   end
+  local active_win = vim.api.nvim_get_current_win()
   local cfg = vim.api.nvim_win_get_config(win)
   if cfg.focusable == false then
     cfg.focusable = true
@@ -197,14 +196,17 @@ end
 
 ---@param win integer
 ---@param height integer
----@param set_cmdheight boolean
-function M.set_win_height(win, height, set_cmdheight)
+---@param sync_cmdheight boolean
+function M.set_win_height(win, height, sync_cmdheight)
+  if not vim.api.nvim_win_is_valid(win) then
+    return
+  end
   if height == 0 then
     vim.api.nvim_win_set_config(win, { hide = true, height = 1 })
   elseif vim.api.nvim_win_get_height(win) ~= height then
     vim.api.nvim_win_set_config(win, { hide = false, height = height })
   end
-  if set_cmdheight and vim.o.cmdheight ~= height then
+  if sync_cmdheight and vim.o.cmdheight ~= height then
     -- Avoid moving the cursor with 'splitkeep' = "screen", and altering the user
     -- configured value with noautocmd.
     vim._with({ noautocmd = true, o = { splitkeep = "screen" } }, function()

@@ -11,7 +11,6 @@ local ext = util.get_ext()
 
 ---@class minibuffer.core.InputSession : minibuffer.core.Session
 ---@field prompt string
----@field input string
 ---@field format_fn minibuffer.core.FormatFn
 ---@field get_suggestions minibuffer.core.InputGetSuggestionsFn|nil
 ---@field async_get_suggestions minibuffer.core.AsyncInputSuggestionsFn|nil
@@ -25,14 +24,12 @@ local ext = util.get_ext()
 ---@field allow_shrink boolean
 ---@field footer_fn minibuffer.core.SelectFooterFn|nil
 ---@field enable_ts boolean
----@field display { buf:integer|nil, win:integer|nil, ns:integer|nil }
+---@field entry { buf:integer|nil, win:integer|nil }
+---@field display { buf:integer|nil, win:integer|nil }
+---@field input string
 ---@field suggestions any[]
 ---@field current_index integer
----@field cmd_bufopts table
----@field cmd_winopts table
 ---@field scroll_offset integer
----@field display_height integer
----@field display_height_prev integer
 ---@field loading boolean
 ---@field _req_id integer
 local InputSession = {}
@@ -90,14 +87,11 @@ function InputSession.new(opts)
       }
     end,
 
-    display = { buf = nil, win = nil, ns = nil },
+    entry = { buf = nil, win = nil },
+    display = { buf = nil, win = nil },
     suggestions = {},
     current_index = 0,
-    cmd_bufopts = {},
-    cmd_winopts = {},
     scroll_offset = 0,
-    display_height = 0,
-    display_height_prev = 0,
     loading = false,
   }, InputSession)
   self._req_id = 0
@@ -116,49 +110,36 @@ function InputSession:overridable()
 end
 
 function InputSession:pre_start()
-  local buf = util.get_cmd_buf()
   local win = util.get_cmd_win()
-  if not buf or not win then
+  if not win then
     return
   end
+
+  util.wipe_cmd_buffer()
 
   self.closed = false
   state.win_sizes = util.get_window_sizes()
   state.win_views = util.get_win_views()
 
-  self.cmd_bufopts = util.save_cmd_opts("buf", { "buftype", "complete" })
-  vim.bo[buf].buftype = "prompt"
-  vim.bo[buf].complete = ""
-  self.cmd_winopts = util.save_cmd_opts("win", { "wrap" })
-  vim.wo[win].wrap = false
-
-  local display_height = math.min(self.max_height, #self.suggestions)
-  display_height = math.max(display_height, 1)
-  self.display_height = display_height
-
-  util.wipe_cmd_buffer()
-  util.enable_cmd_buffer_ts(self.enable_ts)
-  if not self.enable_ts then
-    vim.wo[win].winhighlight = "Normal:MinibufferPrompt"
+  -- Setup display buffer and window
+  local display_height = math.max(1, math.min(self.max_height, #self.suggestions))
+  self.display.buf = vim.api.nvim_create_buf(false, false)
+  if self.entry.buf == 0 then
+    error("Failed to create display minibuffer")
   end
-
-  util.set_win_height(win, display_height + 1, true)
-  vim.fn.prompt_setprompt(buf, self.prompt)
-  vim.fn.prompt_setcallback(buf, function(_)
-    self:submit()
-  end)
-
-  self.display.buf = vim.api.nvim_create_buf(false, true)
-  self.display.win = vim.api.nvim_open_win(self.display.buf, false, {
+  local display_winopts = {
     relative = "editor",
     width = vim.o.columns,
-    hide = true,
-    height = math.max(1, display_height),
+    height = display_height,
     row = vim.o.lines - 1,
     col = 0,
     style = "minimal",
-    zindex = 999,
-  })
+    zindex = vim.api.nvim_win_get_config(win).zindex + 2,
+    border = { " ", "", " ", " ", " ", " ", " ", " " },
+  }
+  display_winopts.footer = self.footer_fn(self.suggestions)
+  display_winopts.footer_pos = "right"
+  self.display.win = vim.api.nvim_open_win(self.display.buf, false, display_winopts)
   vim.api.nvim_win_call(self.display.win, function()
     vim.api.nvim_set_option_value("filetype", "", { scope = "local" })
     vim.api.nvim_set_option_value("eventignorewin", "all", { scope = "local" })
@@ -175,37 +156,67 @@ function InputSession:pre_start()
     )
   end)
 
+  -- Setup entry buffer and window
+  self.entry.buf = vim.api.nvim_create_buf(false, true)
+  if self.entry.buf == 0 then
+    error("Failed to create entry minibuffer")
+  end
+  vim.bo[self.entry.buf].buftype = "prompt"
+  vim.bo[self.entry.buf].complete = ""
+  vim.fn.prompt_setprompt(self.entry.buf, self.prompt)
+  vim.fn.prompt_setcallback(self.entry.buf, function(_)
+    self:submit()
+  end)
+  self.entry.win = vim.api.nvim_open_win(self.entry.buf, false, {
+    relative = "editor",
+    width = vim.o.columns,
+    height = display_height + 1,
+    row = vim.o.lines - 1,
+    col = 0,
+    style = "minimal",
+    zindex = vim.api.nvim_win_get_config(win).zindex + 1,
+    border = "none",
+  })
+  vim.wo[self.entry.win].wrap = false
+  if self.enable_ts then
+    util.enable_buffer_ts(self.entry.buf, self.enable_ts)
+  else
+    vim.wo[self.entry.win].winhighlight = "Normal:MinibufferPrompt"
+  end
+
   self:refresh_suggestions()
 end
 
 function InputSession:render()
-  if not self.display.buf then
-    return
-  end
-  local win = util.get_cmd_win()
-  if not win then
+  if
+    not self.entry.buf
+    or not vim.api.nvim_buf_is_valid(self.entry.buf)
+    or not self.entry.win
+    or not vim.api.nvim_win_is_valid(self.entry.win)
+  then
     return
   end
 
   -- Calculate height based on the suggestions, loading state and max height
+  local prev_display_height = vim.api.nvim_win_get_height(self.display.win)
   local total = #self.suggestions
   local extra_loading = self.loading and 1 or 0
   local visible_height = math.min(self.max_height, total + extra_loading)
   if not self.allow_shrink then
-    visible_height = math.max(self.display_height_prev, visible_height)
+    visible_height = math.max(prev_display_height, visible_height)
   end
-  self.display_height = math.min(self.max_height, visible_height)
+  local display_height = math.min(self.max_height, visible_height)
 
   -- Correct for scroll position
-  if total <= self.display_height then
+  if total <= display_height then
     self.scroll_offset = 0
   else
     if self.current_index < self.scroll_offset + 1 then
       self.scroll_offset = self.current_index - 1
-    elseif self.current_index > self.scroll_offset + self.display_height then
-      self.scroll_offset = self.current_index - self.display_height
+    elseif self.current_index > self.scroll_offset + display_height then
+      self.scroll_offset = self.current_index - display_height
     end
-    local max_offset = math.max(0, total - self.display_height)
+    local max_offset = math.max(0, total - display_height)
     if self.scroll_offset > max_offset then
       self.scroll_offset = max_offset
     end
@@ -214,15 +225,18 @@ function InputSession:render()
     end
   end
 
+  vim.api.nvim_win_set_config(self.display.win, {
+    footer = self.footer_fn(self.suggestions),
+  })
+
   -- Set heights
-  util.set_win_height(self.display.win, self.display_height, false)
-  util.set_win_height(win, self.display_height + 1, true)
-  util.resize_windows_for_cmdheight(state.win_sizes, self.display_height - ext.cmdheight)
-  self.display_height_prev = self.display_height
+  util.set_win_height(self.display.win, display_height, false)
+  util.set_win_height(self.entry.win, display_height + 2, true)
+  util.resize_windows_for_cmdheight(state.win_sizes, display_height - ext.cmdheight)
 
   -- Build display output
   local start_idx = self.scroll_offset + 1
-  local end_idx = math.min(total, start_idx + self.display_height - 1)
+  local end_idx = math.min(total, start_idx + display_height - 1)
   local lines_data = {}
   for i = start_idx, end_idx do
     lines_data[#lines_data + 1] = self.format_fn(self.suggestions[i])
@@ -254,13 +268,16 @@ function InputSession:render()
 end
 
 function InputSession:post_start()
-  local buf = util.get_cmd_buf()
-  local win = util.get_cmd_win()
-  if not buf or not win then
+  if
+    not self.entry.buf
+    or not vim.api.nvim_buf_is_valid(self.entry.buf)
+    or not self.entry.win
+    or not vim.api.nvim_win_is_valid(self.entry.win)
+  then
     return
   end
 
-  local base = { buffer = buf, nowait = true, silent = true, noremap = true }
+  local base = { buffer = self.entry.buf, nowait = true, silent = true, noremap = true }
   local keyset = util.create_condition_keyset(function()
     return state.session == self
   end)
@@ -298,24 +315,17 @@ function InputSession:post_start()
   keyset("i", "<C-w>", "<C-S-w>", base)
 
   if self.on_start then
-    pcall(self.on_start, buf, self, keyset)
+    pcall(self.on_start, self.entry.buf, self, keyset)
   end
+  state.active_window = util.focus_win(self.entry.win)
 
-  state.active_window = util.focus_cmd_win()
-
-  vim.api.nvim_buf_attach(buf, false, {
+  vim.api.nvim_buf_attach(self.entry.buf, false, {
     on_lines = function(_, _, _, _, _, _, _)
-      vim.api.nvim_set_option_value("modified", false, { buf = buf })
-      vim.cmd("setlocal nomodified")
       if self.closed then
         return true
       end
-
-      -- Get the input text and prompt length
-      local input = vim.api.nvim_buf_get_lines(buf, 0, 1, false)[1]
+      local input = vim.api.nvim_buf_get_lines(self.entry.buf, 0, 1, false)[1]
       input = input:sub(#self.prompt + 1)
-
-      -- Refresh on change
       if input ~= self.input then
         self.input = input
         self:refresh_suggestions()
@@ -326,7 +336,6 @@ function InputSession:post_start()
     end,
   })
   vim.cmd("startinsert!")
-  vim.api.nvim_set_option_value("modified", false, { buf = buf })
   pcall(vim.api.nvim_feedkeys, self.input, "t", false)
 end
 
@@ -352,24 +361,30 @@ function InputSession:close()
   vim.cmd("stopinsert")
   vim.cmd.redraw()
 
+  util.set_win_height(self.entry.win, ext.cmdheight, true)
+
   if self.display.win and vim.api.nvim_win_is_valid(self.display.win) then
     pcall(vim.api.nvim_win_close, self.display.win, true)
   end
   if self.display.buf and vim.api.nvim_buf_is_valid(self.display.buf) then
     pcall(vim.api.nvim_buf_delete, self.display.buf, { force = true })
   end
-  util.restore_cmd_opts("buf", self.cmd_bufopts)
-  util.restore_cmd_opts("win", self.cmd_winopts)
   self.display.win = nil
   self.display.buf = nil
+  if self.entry.win and vim.api.nvim_win_is_valid(self.entry.win) then
+    pcall(vim.api.nvim_win_close, self.entry.win, true)
+  end
+  if self.entry.buf and vim.api.nvim_buf_is_valid(self.entry.buf) then
+    pcall(vim.api.nvim_buf_delete, self.entry.buf, { force = true })
+  end
+  self.entry.win = nil
+  self.entry.buf = nil
 
   local win = util.get_cmd_win()
   if not win then
     return
   end
 
-  util.wipe_cmd_buffer()
-  util.set_win_height(win, ext.cmdheight, true)
   if state.active_window and vim.api.nvim_win_is_valid(state.active_window) then
     pcall(vim.api.nvim_set_current_win, state.active_window)
   end
@@ -386,13 +401,18 @@ function InputSession:close()
 end
 
 function InputSession:set_input(text, pos)
-  local buf = util.get_cmd_buf()
-  if not buf then
+  if
+    not self.entry.buf
+    or not vim.api.nvim_buf_is_valid(self.entry.buf)
+    or not self.entry.win
+    or not vim.api.nvim_win_is_valid(self.entry.win)
+  then
     return
   end
+
   pos = pos or text:len()
 
-  vim.api.nvim_buf_set_lines(buf, 0, 1, false, {
+  vim.api.nvim_buf_set_lines(self.entry.buf, 0, 1, false, {
     self.prompt .. text,
   })
   vim.api.nvim_win_set_cursor(0, { 1, #self.prompt + pos })
@@ -460,10 +480,6 @@ function InputSession:refresh_suggestions()
 end
 
 function InputSession:accept_suggestion()
-  local buf = util.get_cmd_buf()
-  if not buf then
-    return
-  end
   if self.current_index == 0 or #self.suggestions == 0 or self.loading then
     return
   end
