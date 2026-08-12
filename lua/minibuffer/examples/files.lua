@@ -76,18 +76,16 @@ local function load_files(cb)
       all_files = vim.split(res.stdout, "\n", { trimempty = true })
     end
     loaded_cwd = opts.cwd
-    cb(all_files)
+    vim.schedule(function()
+      cb(all_files)
+    end)
   end)
 end
 
-local function async_fetch(input, cb)
+local function async_fetch(_, cb)
   debounce(function()
     load_files(function(files)
-      if input == "" then
-        cb(files)
-        return
-      end
-      cb(vim.fn.matchfuzzy(files, input))
+      cb(files)
     end)
   end)
 end
