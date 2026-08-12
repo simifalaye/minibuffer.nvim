@@ -36,7 +36,7 @@ I have integration implementations in `lua/minibuffer/integrations` with existin
 - ui2 enable somewhere early in your init.lua:
 
 ```lua
-require("vim._core.ui2").enable({ enable = true, msg = { target = "msg" } })
+require("vim._core.ui2").enable({ enable = true, msg = { targets = "msg" } })
 ```
 
 # Installation
