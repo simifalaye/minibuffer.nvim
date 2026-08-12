@@ -76,9 +76,7 @@ local function load_files(cb)
       all_files = vim.split(res.stdout, "\n", { trimempty = true })
     end
     loaded_cwd = opts.cwd
-    vim.schedule(function()
-      cb(all_files)
-    end)
+    cb(all_files)
   end)
 end
 
