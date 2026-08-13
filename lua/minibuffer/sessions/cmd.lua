@@ -173,15 +173,27 @@ local function get_command_suggestions(input, cursor_pos)
   local suggestions = {}
   local parts = vim.split(cmp_input, "|")
   local last_cmd = parts[#parts]
+
   if not last_cmd:match("^%S+ ") then
-    for _, item in ipairs(vim.fn.getcompletion(cmp_input, "command")) do
-      suggestions[#suggestions + 1] = make(item)
+    local ok, items = pcall(vim.fn.getcompletion, cmp_input, "command")
+    if ok then
+      for _, item in ipairs(items) do
+        suggestions[#suggestions + 1] = make(item)
+      end
+    else
+      suggestions = nil
     end
   end
 
-  if #suggestions == 0 then
-    for _, item in ipairs(vim.fn.getcompletion(cmp_input, "cmdline")) do
-      suggestions[#suggestions + 1] = make(item)
+  if not suggestions or #suggestions == 0 then
+    local ok, items = pcall(vim.fn.getcompletion, cmp_input, "cmdline")
+    if ok then
+      suggestions = {}
+      for _, item in ipairs(items) do
+        suggestions[#suggestions + 1] = make(item)
+      end
+    else
+      suggestions = nil
     end
   end
 
@@ -633,8 +645,12 @@ function CmdSession:refresh_suggestions()
   else
     fn = get_command_suggestions
   end
-
-  self.suggestions = fn(self.input, self.cursor_pos)
+  local suggestions = fn(self.input, self.cursor_pos)
+  -- failed to query suggestions so preserve previous
+  if suggestions == nil then
+    return
+  end
+  self.suggestions = suggestions
   if #self.suggestions == 0 then
     self.current_index = 0
     self.scroll_offset = 0
