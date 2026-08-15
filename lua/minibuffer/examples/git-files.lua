@@ -84,14 +84,14 @@ return function(o)
     end,
     on_select = function(selection)
       if #selection == 1 then
-        vim.cmd("edit " .. vim.fn.fnameescape(selection[1]))
+        vim.cmd("edit " .. vim.fs.joinpath(opts.cwd, vim.fn.fnameescape(selection[1])))
         return
       end
 
       local qf = {}
       for _, item in ipairs(selection) do
         qf[#qf + 1] = {
-          filename = item,
+          filename = vim.fs.joinpath(opts.cwd, item),
           lnum = 1,
           col = 1,
         }
@@ -109,7 +109,7 @@ return function(o)
       keyset("i", "<C-s>", function()
         if sess.current_index > 0 then
           local file = sess.filtered_items[sess.current_index]
-          vim.cmd("split " .. vim.fn.fnameescape(file))
+          vim.cmd("split " .. vim.fs.joinpath(opts.cwd, vim.fn.fnameescape(file)))
         end
       end, {
         buffer = buf,
@@ -119,7 +119,7 @@ return function(o)
       keyset("i", "<C-v>", function()
         if sess.current_index > 0 then
           local file = sess.filtered_items[sess.current_index]
-          vim.cmd("vsplit " .. vim.fn.fnameescape(file))
+          vim.cmd("vsplit " .. vim.fs.joinpath(opts.cwd, vim.fn.fnameescape(file)))
         end
       end, {
         buffer = buf,

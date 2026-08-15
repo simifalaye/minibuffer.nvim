@@ -78,7 +78,7 @@ return function(o)
     on_select = function(selection)
       if #selection == 1 then
         local item = selection[1]
-        vim.cmd("edit " .. vim.fn.fnameescape(item.path))
+        vim.cmd("edit " .. vim.fs.joinpath(opts.cwd, vim.fn.fnameescape(item.path)))
         vim.cmd('normal! g`"')
         return
       end
@@ -86,7 +86,7 @@ return function(o)
       local qf = {}
       for _, item in ipairs(selection) do
         qf[#qf + 1] = {
-          filename = item.path,
+          filename = vim.fs.joinpath(opts.cwd, vim.fn.fnameescape(item.path)),
           lnum = 1,
           col = 1,
         }
@@ -106,7 +106,7 @@ return function(o)
           if item then
             sess:close()
 
-            vim.cmd("split " .. vim.fn.fnameescape(item.path))
+            vim.cmd("split " .. vim.fs.joinpath(opts.cwd, vim.fn.fnameescape(item.path)))
             vim.cmd('normal! g`"')
           end
         end
@@ -120,7 +120,7 @@ return function(o)
           local item = sess.filtered_items[sess.current_index]
           if item then
             sess:close()
-            vim.cmd("vsplit " .. vim.fn.fnameescape(item.path))
+            vim.cmd("vsplit " .. vim.fs.joinpath(opts.cwd, vim.fn.fnameescape(item.path)))
             vim.cmd('normal! g`"')
           end
         end
