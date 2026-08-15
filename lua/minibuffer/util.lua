@@ -124,7 +124,7 @@ end
 ---@return integer[]
 function M.get_resizable_windows()
   local resizable = {}
-  for _, win in ipairs(vim.api.nvim_list_wins()) do
+  for _, win in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
     local cfg = vim.api.nvim_win_get_config(win)
     if not cfg.relative or cfg.relative == "" then
       resizable[#resizable + 1] = win
@@ -146,49 +146,49 @@ end
 ---@param extra integer
 function M.resize_windows_for_cmdheight(win_sizes, extra)
   local total = 0
-  for _, h in pairs(win_sizes) do
-    total = total + h
+  for _, height in pairs(win_sizes) do
+    total = total + height
   end
   if total == 0 then
     return
   end
-  for win, h in pairs(win_sizes) do
-    local new_h = math.max(1, math.floor(h - (h / total) * extra))
-    vim.api.nvim_win_set_height(win, new_h)
+  for win, height in pairs(win_sizes) do
+    if vim.api.nvim_win_is_valid(win) then
+      local new_height = math.max(1, math.floor(height - (height / total) * extra))
+      vim.api.nvim_win_set_height(win, new_height)
+    end
   end
 end
 
 ---@param win_sizes table<integer, integer>
 function M.restore_window_sizes(win_sizes)
-  for win, h in pairs(win_sizes) do
+  for win, height in pairs(win_sizes) do
     if vim.api.nvim_win_is_valid(win) then
-      vim.api.nvim_win_set_height(win, h)
+      vim.api.nvim_win_set_height(win, height)
     end
   end
-  win_sizes = {}
 end
 
 ---@return table<integer, { buf: integer, view: vim.fn.winsaveview.ret }>
 function M.get_win_views()
-  local win_views = {}
-  local buf = -1
-  local view = nil
+  local views = {}
   for _, win in ipairs(M.get_resizable_windows()) do
-    buf = vim.api.nvim_win_get_buf(win)
-    view = vim.api.nvim_win_call(win, function()
-      return vim.fn.winsaveview()
-    end)
-    win_views[win] = { buf = buf, view = view }
+    views[win] = {
+      buf = vim.api.nvim_win_get_buf(win),
+      view = vim.api.nvim_win_call(win, function()
+        return vim.fn.winsaveview()
+      end),
+    }
   end
-  return win_views
+  return views
 end
 
----@param win_views table<integer, { buf: integer, view: vim.fn.winsaveview.ret }>
-function M.restore_win_views(win_views)
-  for win, d in pairs(win_views) do
-    if vim.api.nvim_win_is_valid(win) and vim.api.nvim_win_get_buf(win) == d.buf then
+---@param views table<integer, { buf: integer, view: vim.fn.winsaveview.ret }>
+function M.restore_win_views(views)
+  for win, data in pairs(views) do
+    if vim.api.nvim_win_is_valid(win) and vim.api.nvim_win_get_buf(win) == data.buf then
       vim.api.nvim_win_call(win, function()
-        vim.fn.winrestview(d.view)
+        vim.fn.winrestview(data.view)
       end)
     end
   end
