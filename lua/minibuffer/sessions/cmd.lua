@@ -95,7 +95,11 @@ local function build_command_ctx(text, pos)
     ["!"] = true,
   }
 
-  local is_lua = vim.startswith(text, "lua ") or vim.startswith(text, "luado ")
+  -- `:=` followed by non-whitespace is a lua command, see `:h :=`
+  local lua_prefixes = { "lua ", "luado", "=%s*%S" }
+  local is_lua = vim.iter(lua_prefixes):any(function(prefix)
+    return string.match(text, "^" .. prefix) ~= nil
+  end)
 
   if is_lua then
     reset["."] = true
