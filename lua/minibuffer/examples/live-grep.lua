@@ -130,7 +130,7 @@ return function(o)
       if #selection == 1 then
         local item = selection[1]
 
-        vim.cmd("edit " .. vim.fn.fnameescape(item.file))
+        vim.cmd("edit " .. vim.fs.joinpath(opts.cwd, vim.fn.fnameescape(item.file)))
         pcall(vim.api.nvim_win_set_cursor, 0, {
           item.line,
           item.col - 1,
@@ -143,7 +143,7 @@ return function(o)
 
       for _, item in ipairs(selection) do
         qf[#qf + 1] = {
-          filename = item.file,
+          filename = vim.fs.joinpath(opts.cwd, vim.fn.fnameescape(item.file)),
           lnum = item.line,
           col = item.col,
           text = item.text,
@@ -164,7 +164,7 @@ return function(o)
           local item = sess.filtered_items[sess.current_index]
 
           if item then
-            vim.cmd("split " .. vim.fn.fnameescape(item.file))
+            vim.cmd("split " .. vim.fs.joinpath(opts.cwd, vim.fn.fnameescape(item.file)))
             pcall(vim.api.nvim_win_set_cursor, 0, {
               item.line,
               item.col - 1,
@@ -183,7 +183,7 @@ return function(o)
           local item = sess.filtered_items[sess.current_index]
 
           if item then
-            vim.cmd("vsplit " .. vim.fn.fnameescape(item.file))
+            vim.cmd("vsplit " .. vim.fs.joinpath(opts.cwd, vim.fn.fnameescape(item.file)))
             pcall(vim.api.nvim_win_set_cursor, 0, {
               item.line,
               item.col - 1,
