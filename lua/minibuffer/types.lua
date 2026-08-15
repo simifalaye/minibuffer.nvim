@@ -26,5 +26,7 @@ Session.__index = Session
 ---@alias minibuffer.core.ItemCompareFn fun(old:any, new:any): boolean
 ---@alias minibuffer.core.FormatFn fun(item:any): minibuffer.core.HighlightLine
 ---@alias minibuffer.core.CancelCallback fun()
----@alias minibuffer.core.CloseCallback fun()
+---@alias minibuffer.core.CloseCallback fun(done?:fun())
 ---@alias minibuffer.core.ChangeCallback fun(value:string, item:any)
+
+---@alias minibuffer.util.Keyset fun(modes:string|string[], lhs:string, rhs:string|function, opts?:vim.keymap.set.Opts)

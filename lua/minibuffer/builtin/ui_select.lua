@@ -9,22 +9,28 @@ return function(items, opts, on_choice)
   end
   require("minibuffer").select({
     prompt = prompt,
-    items = items,
+    fetch_fn = function(_, cb)
+      cb(items)
+    end,
     format_fn = function(item)
       return { { text = format_item(item), hl = "Normal" } }
     end,
-    filter_fn = function(current_items, input)
-      input = input:lower()
+    filter_fn = function(ctx)
+      local input = ctx.input:lower()
       local out = {}
-      for _, it in ipairs(current_items) do
+      for _, it in ipairs(ctx.items) do
         if format_item(it):lower():find(input, 1, true) then
           out[#out + 1] = it
         end
       end
       return out
     end,
-    on_select = function(result, idx)
-      on_choice(result[1], idx[1])
+    on_select = function(selection)
+      if #selection < 1 then
+        return
+      end
+      local selected = selection[1]
+      on_choice(selected.item, selected.index)
     end,
     on_cancel = function()
       on_choice(nil, nil)

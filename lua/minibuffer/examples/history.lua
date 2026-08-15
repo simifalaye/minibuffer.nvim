@@ -1,11 +1,3 @@
----@class minibuffer.examples.HistoryOpts
----@field type? "cmd"|"search"
-
----@type minibuffer.examples.HistoryOpts
-local opts = {
-  type = "cmd",
-}
-
 local function gather_history(kind)
   local histtype = kind == "search" and "/" or ":"
   local items = {}
@@ -29,20 +21,20 @@ local function format_fn(item)
   }
 end
 
-local function filter_fn(items, input)
-  if input == "" then
-    return items
+local function filter_fn(ctx)
+  if ctx.input == "" then
+    return ctx.items
   end
 
   local texts = {}
   local lookup = {}
 
-  for _, item in ipairs(items) do
+  for _, item in ipairs(ctx.items) do
     texts[#texts + 1] = item.text
     lookup[item.text] = item
   end
 
-  local matches = vim.fn.matchfuzzy(texts, input)
+  local matches = vim.fn.matchfuzzy(texts, ctx.input)
 
   local results = {}
   for _, text in ipairs(matches) do
@@ -52,22 +44,27 @@ local function filter_fn(items, input)
   return results
 end
 
----@param o? minibuffer.examples.HistoryOpts
-return function(o)
-  opts = vim.tbl_deep_extend("force", opts, o or {})
+---@class minibuffer.examples.HistoryOpts
+---@field type? "cmd"|"search"
 
+---@param opts? minibuffer.examples.HistoryOpts
+return function(opts)
+  opts = vim.tbl_deep_extend("force", { type = nil }, opts or {})
   local items = gather_history(opts.type)
+
   require("minibuffer").select({
     resumable = true,
     prompt = opts.type == "search" and "Search History: " or "Command History: ",
-    items = items,
     multi = false,
-    allow_shrink = false,
+    dynamic_height = false,
     max_height = 15,
+    fetch_fn = function(_, cb)
+      cb(items)
+    end,
     format_fn = format_fn,
     filter_fn = filter_fn,
     on_select = function(selection)
-      local item = selection[1]
+      local item = selection[1].item
       if not item then
         return
       end

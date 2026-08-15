@@ -59,19 +59,19 @@ local function format_fn(item)
   }
 end
 
-local function filter_fn(items, input)
-  if input == "" then
-    return items
+local function filter_fn(ctx)
+  if ctx.input == "" then
+    return ctx.items
   end
 
   local names = {}
   local lookup = {}
-  for _, item in ipairs(items) do
+  for _, item in ipairs(ctx.items) do
     names[#names + 1] = item.name
     lookup[item.name] = item
   end
 
-  local matches = vim.fn.matchfuzzy(names, input)
+  local matches = vim.fn.matchfuzzy(names, ctx.input)
   local results = {}
 
   for _, name in ipairs(matches) do
@@ -90,16 +90,6 @@ local function get_replacement_buf(current)
   return vim.api.nvim_create_buf(false, true)
 end
 
-local function remove_buffer(items, bufnr)
-  local result = {}
-  for _, item in ipairs(items) do
-    if item.bufnr ~= bufnr then
-      result[#result + 1] = item
-    end
-  end
-  return result
-end
-
 return function()
   local active_win
   local buffers = gather_buffers()
@@ -111,8 +101,11 @@ return function()
     prompt = "Buffers: ",
     items = buffers,
     multi = true,
-    allow_shrink = false,
+    dynamic_height = false,
     max_height = 15,
+    fetch_fn = function(_, cb)
+      cb(buffers)
+    end,
     format_fn = format_fn,
     filter_fn = filter_fn,
     on_change = function(_, item)
@@ -125,7 +118,7 @@ return function()
     end,
     on_select = function(selection)
       if #selection == 1 then
-        local item = selection[1]
+        local item = selection[1].item
         if vim.api.nvim_buf_is_valid(item.bufnr) then
           vim.api.nvim_set_current_buf(item.bufnr)
         end
@@ -133,18 +126,16 @@ return function()
       end
 
       local qf = {}
-      for _, item in ipairs(selection) do
+      for _, selected in ipairs(selection) do
+        local item = selected.item
         qf[#qf + 1] = {
           filename = item.path ~= "" and item.path or item.name,
           text = "#" .. item.bufnr,
+          lnum = 1,
+          col = 1,
         }
       end
-      vim.fn.setqflist({}, " ", {
-        title = "Selected Buffers",
-        items = qf,
-        lnum = 1,
-        col = 1,
-      })
+      vim.fn.setqflist({}, " ", { title = "Selected Buffers", items = qf })
       vim.cmd("copen")
     end,
     on_close = function()
@@ -152,71 +143,58 @@ return function()
         update_preview_win(active_win, prev_buf)
       end
     end,
-    on_start = function(buf, sess, keyset)
+    on_start = function(sess, keyset)
       active_win = minibuffer.get_active_window()
       if not active_win then
         return
       end
 
       keyset("i", "<C-s>", function()
-        if sess.current_index > 0 then
-          local item = sess.filtered_items[sess.current_index]
-
-          if item and vim.api.nvim_buf_is_valid(item.bufnr) then
-            sess:close()
-
-            vim.cmd("split")
-            vim.api.nvim_set_current_buf(item.bufnr)
+        local selected = sess:get_selected()
+        if selected then
+          if selected then
+            sess:close(function()
+              vim.cmd("split " .. selected.bufnr)
+              vim.api.nvim_set_current_buf(selected.bufnr)
+            end)
           end
         end
-      end, {
-        buffer = buf,
-        noremap = true,
-        silent = true,
-      })
+      end)
       keyset("i", "<C-v>", function()
-        if sess.current_index > 0 then
-          local item = sess.filtered_items[sess.current_index]
-
-          if item and vim.api.nvim_buf_is_valid(item.bufnr) then
-            sess:close()
-
-            vim.cmd("vsplit")
-            vim.api.nvim_set_current_buf(item.bufnr)
+        local selected = sess:get_selected()
+        if selected then
+          if selected then
+            sess:close(function()
+              vim.cmd("vsplit " .. selected.bufnr)
+              vim.api.nvim_set_current_buf(selected.bufnr)
+            end)
           end
         end
-      end, {
-        buffer = buf,
-        noremap = true,
-        silent = true,
-      })
+      end)
       keyset("i", "<C-d>", function()
-        if sess.current_index > 0 then
-          local item = sess.filtered_items[sess.current_index]
+        local selected = sess:get_selected()
+        if selected then
+          if selected and vim.api.nvim_buf_is_valid(selected.bufnr) then
+            update_preview_win(active_win, get_replacement_buf(selected.bufnr))
+            vim.api.nvim_buf_delete(selected.bufnr, {})
 
-          if item and vim.api.nvim_buf_is_valid(item.bufnr) then
-            update_preview_win(active_win, get_replacement_buf(item.bufnr))
-            vim.api.nvim_buf_delete(item.bufnr, {})
-
-            sess.items = remove_buffer(sess.items, item.bufnr)
-            sess.filtered_items = filter_fn(sess.items, sess.input)
-            if #sess.filtered_items == 0 then
-              sess.current_index = 0
-            else
-              sess.current_index = math.min(sess.current_index, #sess.filtered_items)
+            -- Remove buffer from list
+            local new_buffer_list = {}
+            for _, item in ipairs(buffers) do
+              if item.bufnr ~= selected.bufnr then
+                new_buffer_list[#new_buffer_list + 1] = item
+              end
             end
-            sess:render()
+            buffers = new_buffer_list
+
+            sess:refresh_results()
           end
         end
-      end, {
-        buffer = buf,
-        noremap = true,
-        silent = true,
-      })
+      end)
     end,
-    footer_fn = function(items)
+    footer_fn = function(ctx)
       return {
-        { #items .. " items", "Normal" },
+        { #ctx.items .. " items", "Normal" },
         {
           " C-x toggle, C-a toggle-all, C-s split, C-v vsplit, C-d delete, C-y accept, C-n next, C-p prev",
           "Comment",

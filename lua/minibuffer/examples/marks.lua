@@ -43,14 +43,14 @@ local function format_fn(item)
   }
 end
 
-local function filter_fn(items, input)
-  if input == "" then
-    return items
+local function filter_fn(ctx)
+  if ctx.input == "" then
+    return ctx.items
   end
 
   local lookup = {}
   local keys = {}
-  for _, item in ipairs(items) do
+  for _, item in ipairs(ctx.items) do
     local key = table.concat({
       item.mark,
       item.file,
@@ -60,7 +60,7 @@ local function filter_fn(items, input)
     lookup[key] = item
   end
 
-  local matches = vim.fn.matchfuzzy(keys, input)
+  local matches = vim.fn.matchfuzzy(keys, ctx.input)
   local results = {}
   for _, key in ipairs(matches) do
     results[#results + 1] = lookup[key]
@@ -70,17 +70,20 @@ local function filter_fn(items, input)
 end
 
 return function()
+  local marks = gather_marks()
   require("minibuffer").select({
     resumable = true,
     prompt = "Marks: ",
-    items = gather_marks(),
     multi = false,
-    allow_shrink = false,
+    dynamic_height = false,
     max_height = 15,
+    fetch_fn = function(_, cb)
+      cb(marks)
+    end,
     format_fn = format_fn,
     filter_fn = filter_fn,
     on_select = function(selection)
-      local item = selection[1]
+      local item = selection[1].item
       if not item then
         return
       end

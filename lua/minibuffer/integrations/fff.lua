@@ -46,8 +46,7 @@ function M.file_search(opts)
   require("minibuffer").select({
     resumable = true,
     prompt = "FFFiles: ",
-    items = {}, -- empty initially; async_fetch fills
-    async_fetch = function(input, cb)
+    fetch_fn = function(input, cb)
       local result = fff.file_search(input, {
         mode = opts.mode,
         max_results = opts.max_results,
@@ -58,7 +57,7 @@ function M.file_search(opts)
       cb(result.items)
     end,
     multi = true,
-    allow_shrink = false,
+    dynamic_height = false,
     max_height = 15,
     format_fn = function(item)
       if not item then
@@ -70,19 +69,21 @@ function M.file_search(opts)
       end
       return data
     end,
-    filter_fn = function(items)
+    filter_fn = function(ctx)
       return vim.tbl_filter(function(item)
         return item.relative_path and item.relative_path:len() > 0
-      end, items)
+      end, ctx.items)
     end,
     on_select = function(selection)
       if #selection == 1 then
-        vim.cmd("edit " .. vim.fn.fnameescape(selection[1].relative_path))
+        local item = selection[1].item
+        vim.cmd("edit " .. vim.fn.fnameescape(item.relative_path))
         return
       end
 
       local qf = {}
-      for _, item in ipairs(selection) do
+      for _, selected in ipairs(selection) do
+        local item = selected.item
         qf[#qf + 1] = {
           filename = item.relative_path,
           lnum = 1,
@@ -92,35 +93,38 @@ function M.file_search(opts)
       vim.fn.setqflist({}, " ", { title = "Selected Files", items = qf })
       vim.cmd("copen")
     end,
-    on_start = function(buf, sess, keyset)
-      -- Open current highlighted file in horizontal split
+    on_start = function(sess, keyset)
       keyset("i", "<C-s>", function()
-        if sess.current_index > 0 then
-          sess:close()
-          local item = sess.filtered_items[sess.current_index]
-          vim.cmd("split " .. vim.fn.fnameescape(item.relative_path))
+        local selected = sess:get_selected()
+        if selected then
+          sess:close(function()
+            vim.cmd(
+              "split "
+                .. vim.fs.joinpath(opts.cwd, vim.fn.fnameescape(selected.relative_path))
+            )
+          end)
         end
-      end, { buffer = buf, noremap = true, silent = true })
-
-      -- Open current highlighted file in vertical split
+      end)
       keyset("i", "<C-v>", function()
-        if sess.current_index > 0 then
-          sess:close()
-          local item = sess.filtered_items[sess.current_index]
-          vim.cmd("vsplit " .. vim.fn.fnameescape(item.relative_path))
+        local selected = sess:get_selected()
+        if selected then
+          sess:close(function()
+            vim.cmd(
+              "vsplit "
+                .. vim.fs.joinpath(opts.cwd, vim.fn.fnameescape(selected.relative_path))
+            )
+          end)
         end
-      end, { buffer = buf, noremap = true, silent = true })
-
-      -- Toggle mode
+      end)
       keyset("i", "<C-t>", function()
         opts.mode = toggle_value(opts.mode, { "files", "directories", "mixed" })
-        sess:update_filter()
+        sess:refresh_results()
         sess:render()
-      end, { buffer = buf, noremap = true, silent = true })
+      end)
     end,
-    footer_fn = function(items)
+    footer_fn = function(ctx)
       return {
-        { #items .. " items, " .. opts.mode .. " mode", "Normal" },
+        { #ctx.items .. " items, " .. opts.mode .. " mode", "Normal" },
         {
           " C-x toggle, C-a toggle-all, C-t toggle-mode, C-a toggle-all, C-y accept, C-n next, C-p prev",
           "Comment",
@@ -148,8 +152,7 @@ function M.content_search(opts)
   require("minibuffer").select({
     resumable = true,
     prompt = "FFFGrep: ",
-    items = {}, -- empty initially; async_fetch fills
-    async_fetch = function(input, cb)
+    fetch_fn = function(input, cb)
       local result = require("fff").content_search(input, {
         mode = opts.mode,
         cwd = opts.cwd,
@@ -157,7 +160,7 @@ function M.content_search(opts)
       cb(result.items)
     end,
     multi = true,
-    allow_shrink = false,
+    dynamic_height = false,
     max_height = 15,
     format_fn = function(item)
       if not item then
@@ -168,21 +171,23 @@ function M.content_search(opts)
         { text = ": " .. item.line_content, hl = "Comment" },
       }
     end,
-    filter_fn = function(items)
+    filter_fn = function(ctx)
       return vim.tbl_filter(function(item)
         return item.relative_path and item.relative_path:len() > 0 and item.line_number
-      end, items)
+      end, ctx.items)
     end,
     on_select = function(selection)
       if #selection == 1 then
-        vim.cmd("edit " .. vim.fn.fnameescape(selection[1].relative_path))
-        pcall(vim.api.nvim_win_set_cursor, 0, { selection[1].line_number, 0 })
+        local item = selection[1].item
+        vim.cmd("edit " .. vim.fn.fnameescape(item.relative_path))
+        pcall(vim.api.nvim_win_set_cursor, 0, { item.line_number, 0 })
         vim.cmd("normal! zz")
         return
       end
 
       local qf = {}
-      for _, item in ipairs(selection) do
+      for _, selected in ipairs(selection) do
+        local item = selected.item
         qf[#qf + 1] = {
           filename = item.relative_path,
           lnum = item.line_number,
@@ -193,43 +198,44 @@ function M.content_search(opts)
       vim.fn.setqflist({}, " ", { title = "Grep Results", items = qf })
       vim.cmd("copen")
     end,
-    on_start = function(buf, sess, keyset)
-      -- Open current match in horizontal split
+    on_start = function(sess, keyset)
       keyset("i", "<C-s>", function()
-        if sess.current_index > 0 then
-          local item = sess.filtered_items[sess.current_index]
-          if item then
-            sess:close()
-            vim.cmd("split " .. vim.fn.fnameescape(item.relative_path))
-            pcall(vim.api.nvim_win_set_cursor, 0, { item.line_number, 0 })
+        local selected = sess:get_selected()
+        if selected then
+          sess:close(function()
+            vim.cmd(
+              "split "
+                .. vim.fs.joinpath(opts.cwd, vim.fn.fnameescape(selected.relative_path))
+            )
+            pcall(vim.api.nvim_win_set_cursor, 0, { selected.line_number, 0 })
             vim.cmd("normal! zz")
-          end
+          end)
         end
-      end, { buffer = buf, noremap = true, silent = true })
-
-      -- Open current match in vertical split
+      end)
       keyset("i", "<C-v>", function()
-        if sess.current_index > 0 then
-          local item = sess.filtered_items[sess.current_index]
-          if item then
-            sess:close()
-            vim.cmd("vsplit " .. vim.fn.fnameescape(item.relative_path))
-            pcall(vim.api.nvim_win_set_cursor, 0, { item.line_number, 0 })
-            vim.cmd("normal! zz")
+        local selected = sess:get_selected()
+        if selected then
+          if selected then
+            sess:close(function()
+              vim.cmd(
+                "vsplit "
+                  .. vim.fs.joinpath(opts.cwd, vim.fn.fnameescape(selected.relative_path))
+              )
+              pcall(vim.api.nvim_win_set_cursor, 0, { selected.line_number, 0 })
+              vim.cmd("normal! zz")
+            end)
           end
         end
-      end, { buffer = buf, noremap = true, silent = true })
-
-      -- Toggle mode
+      end)
       keyset("i", "<C-t>", function()
         opts.mode = toggle_value(opts.mode, { "plain", "regex", "fuzzy" })
-        sess:update_filter()
+        sess:refresh_results()
         sess:render()
-      end, { buffer = buf, noremap = true, silent = true })
+      end)
     end,
-    footer_fn = function(items)
+    footer_fn = function(ctx)
       return {
-        { #items .. " items, " .. opts.mode .. " mode", "Normal" },
+        { #ctx.items .. " items, " .. opts.mode .. " mode", "Normal" },
         {
           " C-x toggle, C-a toggle-all, C-t toggle-mode, C-a toggle-all, C-y accept, C-n next, C-p prev",
           "Comment",

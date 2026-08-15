@@ -55,18 +55,18 @@ local function format_fn(item)
   }
 end
 
-local function filter_fn(items, input)
-  if input == "" then
-    return items
+local function filter_fn(ctx)
+  if ctx.input == "" then
+    return ctx.items
   end
-  input = input:lower()
+  local input = ctx.input:lower()
 
   local exact = {}
   local prefix = {}
   local fuzzy = {}
   local fuzzy_items = {}
   local fuzzy_lookup = {}
-  for _, item in ipairs(items) do
+  for _, item in ipairs(ctx.items) do
     local name = item.name:lower()
     if name == input then
       exact[#exact + 1] = item
@@ -107,13 +107,12 @@ return function()
   require("minibuffer").select({
     resumable = true,
     prompt = "Manpages: ",
-    items = {},
     multi = false,
-    allow_shrink = false,
+    dynamic_height = false,
     max_height = 15,
     format_fn = format_fn,
     filter_fn = filter_fn,
-    async_fetch = function(input, cb)
+    fetch_fn = function(input, cb)
       vim.system({ "man", "-k", input ~= "" and input or "." }, {
         text = true,
       }, function(result)
@@ -133,7 +132,7 @@ return function()
       end)
     end,
     on_select = function(selection)
-      local item = selection[1]
+      local item = selection[1].item
       if not item then
         return
       end
