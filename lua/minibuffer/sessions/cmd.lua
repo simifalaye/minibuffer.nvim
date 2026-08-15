@@ -413,8 +413,11 @@ function CmdSession:pre_start()
   })
   vim.opt.wildmenu = false
   vim.opt.wildmode = ""
-  vim.opt.wildoptions = ""
   vim.opt.wildchar = 0
+  vim.opt.wildoptions = vim.tbl_filter(function(opt)
+    return opt ~= "pum"
+    ---@diagnostic disable-next-line: undefined-field
+  end, vim.opt.wildoptions:get())
 
   self:refresh_suggestions()
 end
