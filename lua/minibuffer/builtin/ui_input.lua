@@ -14,7 +14,7 @@ return function(opts, on_confirm)
     format_fn = function(item)
       return { { text = item, hl = highlight(item) } }
     end,
-    get_suggestions = function(input)
+    fetch_fn = function(input, cb)
       local suggestions = {}
 
       local ok, completions = pcall(function()
@@ -27,15 +27,14 @@ return function(opts, on_confirm)
           table.insert(suggestions, comp)
         end
       end
-
-      return suggestions
+      cb(suggestions)
     end,
     ---@diagnostic disable-next-line: unused-local
-    on_accept_suggestion = function(input, suggestion)
-      return suggestion
+    on_accept = function(ctx)
+      return ctx.items[ctx.current_index]
     end,
-    on_submit = function(input)
-      on_confirm(input)
+    on_submit = function(ctx)
+      on_confirm(ctx.input)
     end,
   })
 end

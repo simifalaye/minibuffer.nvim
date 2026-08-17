@@ -1,27 +1,9 @@
----@class minibuffer.examples.FilesGrepOpts
----@field rg_opts string[]|nil
----@field cwd string|nil
-
 if vim.fn.executable("rg") == 0 then
   vim.notify("rg is required for using the files picker")
   return function() end
 end
 
 local util = require("minibuffer.util")
-
----@type minibuffer.examples.FilesGrepOpts
-local opts = {
-  rg_opts = {
-    "rg",
-    "--files",
-    "--hidden",
-    "--color",
-    "never",
-    "-g",
-    "!.git",
-  },
-  cwd = nil,
-}
 
 local debounce = util.make_debounced(50)
 
@@ -41,16 +23,16 @@ local function format_fn(item)
 end
 
 -- Use vim's fuzzy matcher
-local function filter_fn(items, input)
-  if input == "" then
-    return items
+local function filter_fn(ctx)
+  if ctx.input == "" then
+    return ctx.items
   end
 
-  return vim.fn.matchfuzzy(items, input)
+  return vim.fn.matchfuzzy(ctx.items, ctx.input)
 end
 
 -- Load all files once using rg
-local function load_files(cb)
+local function load_files(opts, cb)
   if loading then
     return
   end
@@ -70,86 +52,100 @@ local function load_files(cb)
 
   vim.system(cmd, proc_opts, function(res)
     loading = false
-    if res.code ~= 0 or not res.stdout then
-      all_files = {}
-    else
-      all_files = vim.split(res.stdout, "\n", { trimempty = true })
+    if res.code ~= 0 then
+      cb(nil, res.stderr)
+      return
     end
+
     loaded_cwd = opts.cwd
-    cb(all_files)
+    cb(vim.split(res.stdout, "\n", { trimempty = true }))
   end)
 end
 
-local function async_fetch(_, cb)
-  debounce(function()
-    load_files(function(files)
-      cb(files)
-    end)
-  end)
-end
+---@class minibuffer.examples.FilesGrepOpts
+---@field rg_opts string[]|nil
+---@field cwd string|nil
 
----@param o minibuffer.examples.FilesGrepOpts
-return function(o)
-  opts = vim.tbl_deep_extend("force", opts, o or {})
+---@param opts minibuffer.examples.FilesGrepOpts
+return function(opts)
+  ---@type minibuffer.examples.FilesGrepOpts
+  local default_opts = {
+    rg_opts = {
+      "rg",
+      "--files",
+      "--hidden",
+      "--color",
+      "never",
+      "-g",
+      "!.git",
+    },
+    cwd = nil,
+  }
+  opts = vim.tbl_deep_extend("force", default_opts, opts or {})
+  opts.cwd = opts.cwd and vim.fn.fnamemodify(opts.cwd, ":p")
 
   all_files = {}
   loaded_cwd = nil
   require("minibuffer").select({
     resumable = true,
     prompt = "Files: ",
-    items = {},
-    async_fetch = async_fetch,
     multi = true,
-    allow_shrink = false,
+    dynamic_height = false,
     max_height = 15,
+    fetch_fn = function(_, cb)
+      debounce(function()
+        load_files(opts, cb)
+      end)
+    end,
     format_fn = format_fn,
     filter_fn = filter_fn,
     on_select = function(selection)
       if #selection == 1 then
-        vim.cmd("edit " .. vim.fs.joinpath(opts.cwd, vim.fn.fnameescape(selection[1])))
+        local item = selection[1].item
+        vim.cmd("edit " .. vim.fs.joinpath(opts.cwd, vim.fn.fnameescape(item)))
         return
       end
 
       local qf = {}
-      for _, item in ipairs(selection) do
+      for _, selected in ipairs(selection) do
+        local item = selected.item
         qf[#qf + 1] = {
           filename = vim.fs.joinpath(opts.cwd, item),
+          lnum = 1,
+          col = 1,
         }
       end
 
-      vim.fn.setqflist({}, " ", {
-        title = "Selected Files",
-        items = qf,
-        lnum = 1,
-        col = 1,
-      })
+      vim.fn.setqflist({}, " ", { title = "Selected Files", items = qf })
       vim.cmd("copen")
     end,
-    on_start = function(buf, sess, keyset)
+    on_start = function(sess, keyset)
       keyset("i", "<C-s>", function()
-        if sess.current_index > 0 then
-          local file = sess.filtered_items[sess.current_index]
-          vim.cmd("split " .. vim.fs.joinpath(opts.cwd, vim.fn.fnameescape(file)))
+        local selected = sess:get_selected()
+        if selected then
+          if selected then
+            sess:close(function()
+              vim.cmd("split " .. vim.fs.joinpath(opts.cwd, vim.fn.fnameescape(selected)))
+            end)
+          end
         end
-      end, {
-        buffer = buf,
-        noremap = true,
-        silent = true,
-      })
+      end)
       keyset("i", "<C-v>", function()
-        if sess.current_index > 0 then
-          local file = sess.filtered_items[sess.current_index]
-          vim.cmd("vsplit " .. vim.fs.joinpath(opts.cwd, vim.fn.fnameescape(file)))
+        local selected = sess:get_selected()
+        if selected then
+          if selected then
+            sess:close(function()
+              vim.cmd(
+                "vsplit " .. vim.fs.joinpath(opts.cwd, vim.fn.fnameescape(selected))
+              )
+            end)
+          end
         end
-      end, {
-        buffer = buf,
-        noremap = true,
-        silent = true,
-      })
+      end)
     end,
-    footer_fn = function(items)
+    footer_fn = function(ctx)
       return {
-        { #items .. " items", "Normal" },
+        { #ctx.items .. " items", "Normal" },
         {
           " C-x toggle, C-a toggle-all, C-s split, C-v vsplit, C-d delete, C-y accept, C-n next, C-p prev",
           "Comment",

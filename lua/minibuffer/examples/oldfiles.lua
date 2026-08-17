@@ -1,11 +1,3 @@
----@class minibuffer.examples.OldfilesOpts
----@field cwd string|nil
-
----@class minibuffer.examples.OldfilesOpts
-local opts = {
-  cwd = nil,
-}
-
 local function is_in_cwd(path, cwd)
   return vim.fs.relpath(cwd, path) ~= nil
 end
@@ -38,19 +30,19 @@ local function format_fn(item)
   }
 end
 
-local function filter_fn(items, input)
-  if input == "" then
-    return items
+local function filter_fn(ctx)
+  if ctx.input == "" then
+    return ctx.items
   end
 
   local paths = {}
   local lookup = {}
 
-  for _, item in ipairs(items) do
+  for _, item in ipairs(ctx.items) do
     paths[#paths + 1] = item.path
     lookup[item.path] = item
   end
-  local matches = vim.fn.matchfuzzy(paths, input)
+  local matches = vim.fn.matchfuzzy(paths, ctx.input)
 
   local results = {}
   for _, path in ipairs(matches) do
@@ -60,79 +52,71 @@ local function filter_fn(items, input)
   return results
 end
 
----@param o minibuffer.examples.OldfilesOpts
-return function(o)
-  opts = vim.tbl_deep_extend("force", opts, o or {})
+---@class minibuffer.examples.OldfilesOpts
+---@field cwd string|nil
+
+---@param opts minibuffer.examples.OldfilesOpts
+return function(opts)
+  opts = vim.tbl_deep_extend("force", { cwd = nil }, opts or {})
 
   local oldfiles = gather_oldfiles(opts.cwd)
-
   require("minibuffer").select({
     resumable = true,
     prompt = "Oldfiles: ",
-    items = oldfiles,
     multi = true,
-    allow_shrink = false,
+    dynamic_height = false,
     max_height = 15,
+    fetch_fn = function(_, cb)
+      cb(oldfiles)
+    end,
     format_fn = format_fn,
     filter_fn = filter_fn,
     on_select = function(selection)
       if #selection == 1 then
-        local item = selection[1]
-        vim.cmd("edit " .. vim.fs.joinpath(opts.cwd, vim.fn.fnameescape(item.path)))
+        local item = selection[1].item
+        vim.cmd("edit " .. vim.fn.fnameescape(item.path))
         vim.cmd('normal! g`"')
         return
       end
 
       local qf = {}
-      for _, item in ipairs(selection) do
+      for _, selected in ipairs(selection) do
+        local item = selected.item
         qf[#qf + 1] = {
-          filename = vim.fs.joinpath(opts.cwd, vim.fn.fnameescape(item.path)),
+          filename = vim.fn.fnameescape(item.path),
           lnum = 1,
           col = 1,
         }
       end
 
-      vim.fn.setqflist({}, " ", {
-        title = "Selected Oldfiles",
-        items = qf,
-      })
+      vim.fn.setqflist({}, " ", { title = "Selected Oldfiles", items = qf })
       vim.cmd("copen")
     end,
-    on_start = function(buf, sess, keyset)
+    on_start = function(sess, keyset)
       keyset("i", "<C-s>", function()
-        if sess.current_index > 0 then
-          local item = sess.filtered_items[sess.current_index]
-
-          if item then
-            sess:close()
-
-            vim.cmd("split " .. vim.fs.joinpath(opts.cwd, vim.fn.fnameescape(item.path)))
-            vim.cmd('normal! g`"')
+        local selected = sess:get_selected()
+        if selected then
+          if selected then
+            sess:close(function()
+              vim.cmd("split " .. vim.fn.fnameescape(selected.path))
+            end)
           end
         end
-      end, {
-        buffer = buf,
-        noremap = true,
-        silent = true,
-      })
+      end)
       keyset("i", "<C-v>", function()
-        if sess.current_index > 0 then
-          local item = sess.filtered_items[sess.current_index]
-          if item then
-            sess:close()
-            vim.cmd("vsplit " .. vim.fs.joinpath(opts.cwd, vim.fn.fnameescape(item.path)))
-            vim.cmd('normal! g`"')
+        local selected = sess:get_selected()
+        if selected then
+          if selected then
+            sess:close(function()
+              vim.cmd("vsplit " .. vim.fn.fnameescape(selected.path))
+            end)
           end
         end
-      end, {
-        buffer = buf,
-        noremap = true,
-        silent = true,
-      })
+      end)
     end,
-    footer_fn = function(items)
+    footer_fn = function(ctx)
       return {
-        { #items .. " items", "Normal" },
+        { #ctx.items .. " items", "Normal" },
         {
           " C-x toggle, C-a toggle-all, C-s split, C-v vsplit, C-d delete, C-y accept, C-n next, C-p prev",
           "Comment",

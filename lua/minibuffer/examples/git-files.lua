@@ -1,28 +1,23 @@
----@class minibuffer.examples.GitFilesOpts
----@field cwd? string
----@field show_untracked? boolean
-
----@type minibuffer.examples.GitFilesOpts
-local opts = {
-  cwd = nil,
-}
-
 local function format_fn(item)
   return {
     { text = item, hl = "Normal" },
   }
 end
 
-local function filter_fn(items, input)
-  if input == "" then
-    return items
+local function filter_fn(ctx)
+  if ctx.input == "" then
+    return ctx.items
   end
-  return vim.fn.matchfuzzy(items, input)
+  return vim.fn.matchfuzzy(ctx.items, ctx.input)
 end
 
----@param o? minibuffer.examples.GitFilesOpts
-return function(o)
-  opts = vim.tbl_deep_extend("force", opts, o or {})
+---@class minibuffer.examples.GitFilesOpts
+---@field cwd? string
+---@field show_untracked? boolean
+
+---@param opts? minibuffer.examples.GitFilesOpts
+return function(opts)
+  opts = vim.tbl_deep_extend("force", { cwd = nil }, opts or {})
   local cwd = vim.fn.fnamemodify(opts.cwd or vim.fn.getcwd(), ":p")
   local show_untracked = opts.show_untracked == true
 
@@ -45,13 +40,10 @@ return function(o)
   require("minibuffer").select({
     resumable = true,
     prompt = "Git Files: ",
-    items = {},
     multi = true,
-    allow_shrink = false,
+    dynamic_height = false,
     max_height = 15,
-    format_fn = format_fn,
-    filter_fn = filter_fn,
-    async_fetch = function(_, cb)
+    fetch_fn = function(_, cb)
       local g_opts = {
         "git",
         "-C",
@@ -65,31 +57,30 @@ return function(o)
       end
       vim.system(g_opts, {
         text = true,
-      }, function(result)
-        if result.code ~= 0 then
-          vim.schedule(function()
-            cb({})
-          end)
+      }, function(res)
+        if res.code ~= 0 then
+          cb(nil, res.stderr)
           return
         end
 
-        local items = vim.split(result.stdout or "", "\n", {
+        local items = vim.split(res.stdout or "", "\n", {
           trimempty = true,
         })
-
-        vim.schedule(function()
-          cb(items)
-        end)
+        cb(items)
       end)
     end,
+    format_fn = format_fn,
+    filter_fn = filter_fn,
     on_select = function(selection)
       if #selection == 1 then
-        vim.cmd("edit " .. vim.fs.joinpath(opts.cwd, vim.fn.fnameescape(selection[1])))
+        local item = selection[1].item
+        vim.cmd("edit " .. vim.fs.joinpath(opts.cwd, vim.fn.fnameescape(item)))
         return
       end
 
       local qf = {}
-      for _, item in ipairs(selection) do
+      for _, selected in ipairs(selection) do
+        local item = selected.item
         qf[#qf + 1] = {
           filename = vim.fs.joinpath(opts.cwd, item),
           lnum = 1,
@@ -97,39 +88,36 @@ return function(o)
         }
       end
 
-      vim.fn.setqflist({}, " ", {
-        title = "Selected Files",
-        items = qf,
-        lnum = 1,
-        col = 1,
-      })
+      vim.fn.setqflist({}, " ", { title = "Selected Files", items = qf })
       vim.cmd("copen")
     end,
-    on_start = function(buf, sess, keyset)
+    on_start = function(sess, keyset)
       keyset("i", "<C-s>", function()
-        if sess.current_index > 0 then
-          local file = sess.filtered_items[sess.current_index]
-          vim.cmd("split " .. vim.fs.joinpath(opts.cwd, vim.fn.fnameescape(file)))
+        local selected = sess:get_selected()
+        if selected then
+          if selected then
+            sess:close(function()
+              vim.cmd("split " .. vim.fs.joinpath(opts.cwd, vim.fn.fnameescape(selected)))
+            end)
+          end
         end
-      end, {
-        buffer = buf,
-        noremap = true,
-        silent = true,
-      })
+      end)
       keyset("i", "<C-v>", function()
-        if sess.current_index > 0 then
-          local file = sess.filtered_items[sess.current_index]
-          vim.cmd("vsplit " .. vim.fs.joinpath(opts.cwd, vim.fn.fnameescape(file)))
+        local selected = sess:get_selected()
+        if selected then
+          if selected then
+            sess:close(function()
+              vim.cmd(
+                "vsplit " .. vim.fs.joinpath(opts.cwd, vim.fn.fnameescape(selected))
+              )
+            end)
+          end
         end
-      end, {
-        buffer = buf,
-        noremap = true,
-        silent = true,
-      })
+      end)
     end,
-    footer_fn = function(items)
+    footer_fn = function(ctx)
       return {
-        { #items .. " items", "Normal" },
+        { #ctx.items .. " items", "Normal" },
         {
           " C-x toggle, C-a toggle-all, C-s split, C-v vsplit, C-d delete, C-y accept, C-n next, C-p prev",
           "Comment",

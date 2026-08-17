@@ -1,11 +1,3 @@
----@class minibuffer.examples.ListOpts
----@field type? "quickfix"|"loclist"
-
----@type minibuffer.examples.ListOpts
-local opts = {
-  type = "quickfix",
-}
-
 local function gather_items(kind)
   local list = kind == "loclist" and vim.fn.getloclist(0) or vim.fn.getqflist()
   local items = {}
@@ -47,14 +39,14 @@ local function format_fn(item)
   }
 end
 
-local function filter_fn(items, input)
-  if input == "" then
-    return items
+local function filter_fn(ctx)
+  if ctx.input == "" then
+    return ctx.items
   end
 
   local lookup = {}
   local keys = {}
-  for _, item in ipairs(items) do
+  for _, item in ipairs(ctx.items) do
     local key = table.concat({
       item.file,
       tostring(item.lnum),
@@ -65,7 +57,7 @@ local function filter_fn(items, input)
     lookup[key] = item
   end
 
-  local matches = vim.fn.matchfuzzy(keys, input)
+  local matches = vim.fn.matchfuzzy(keys, ctx.input)
   local results = {}
   for _, key in ipairs(matches) do
     results[#results + 1] = lookup[key]
@@ -74,21 +66,27 @@ local function filter_fn(items, input)
   return results
 end
 
----@param o? minibuffer.examples.ListOpts
-return function(o)
-  opts = vim.tbl_deep_extend("force", opts, o or {})
+---@class minibuffer.examples.ListOpts
+---@field type? "quickfix"|"loclist"
+
+---@param opts? minibuffer.examples.ListOpts
+return function(opts)
+  opts = vim.tbl_deep_extend("force", { type = "quickfix" }, opts or {})
+  local items = gather_items(opts.type)
 
   require("minibuffer").select({
     resumable = true,
     prompt = opts.type == "loclist" and "Location List: " or "Quickfix List: ",
-    items = gather_items(opts.type),
     multi = false,
-    allow_shrink = false,
+    dynamic_height = false,
     max_height = 15,
+    fetch_fn = function(_, cb)
+      cb(items)
+    end,
     format_fn = format_fn,
     filter_fn = filter_fn,
     on_select = function(selection)
-      local item = selection[1]
+      local item = selection[1].item
       if not item then
         return
       end

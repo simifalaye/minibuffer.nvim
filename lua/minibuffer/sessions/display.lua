@@ -5,9 +5,9 @@ local ext = util.get_ext()
 ---@class minibuffer.core.DisplaySession : minibuffer.core.Session
 ---@field lines minibuffer.core.HighlightLine[]
 ---@field timeout integer|nil
----@field on_close minibuffer.core.CloseCallback|nil
 ---@field close_keys string[]
----@field allow_shrink boolean
+---@field dynamic_height boolean
+---@field on_close minibuffer.core.CloseCallback|nil
 ---@field _timer uv.uv_timer_t|nil
 local DisplaySession = {}
 DisplaySession.__index = DisplaySession
@@ -15,23 +15,23 @@ DisplaySession.__index = DisplaySession
 ---@class minibuffer.core.DisplaySessionOpts
 ---@field lines minibuffer.core.HighlightLine[]
 ---@field timeout integer|nil
----@field on_close minibuffer.core.CloseCallback|nil
 ---@field close_keys string[]|nil
----@field allow_shrink boolean|nil
+---@field dynamic_height boolean|nil
+---@field on_close minibuffer.core.CloseCallback|nil
 
 ---@param opts minibuffer.core.DisplaySessionOpts|nil
 ---@return minibuffer.core.DisplaySession
 function DisplaySession.new(opts)
   opts = opts or {}
   local self = setmetatable({
-    closed = false,
     resumable = false,
     lines = opts.lines or {},
     timeout = opts.timeout,
-    on_close = opts.on_close,
     close_keys = opts.close_keys or { "<F5>" },
-    allow_shrink = opts.allow_shrink == true,
+    dynamic_height = opts.dynamic_height == true,
+    on_close = opts.on_close,
 
+    _closed = false,
     _timer = nil,
   }, DisplaySession)
   return self
@@ -54,7 +54,7 @@ function DisplaySession:pre_start()
     return
   end
 
-  self.closed = false
+  self._closed = false
   state.win_sizes = util.get_window_sizes()
   state.win_views = util.get_win_views()
 
@@ -79,6 +79,10 @@ function DisplaySession:pre_start()
 end
 
 function DisplaySession:render()
+  if self._closed then
+    return
+  end
+
   local buf = util.get_cmd_buf()
   local win = util.get_cmd_win()
   if not buf or not win then
@@ -93,7 +97,7 @@ function DisplaySession:render()
   util.write_highlighted_lines(buf, state.ns, lines_data)
 
   local new_height = #lines_data
-  if not self.allow_shrink then
+  if not self.dynamic_height then
     new_height = math.max(vim.api.nvim_win_get_height(win), new_height)
   end
   util.set_win_height(win, new_height + 1, true)
@@ -102,11 +106,15 @@ function DisplaySession:render()
 end
 
 function DisplaySession:post_start()
+  if self._closed then
+    return
+  end
+
   local buf = util.get_cmd_buf()
   if not buf then
     return
   end
-  local base = { buffer = buf, nowait = true, silent = true, noremap = true }
+  local base = { buf = buf, nowait = true, silent = true, noremap = true }
   for _, k in ipairs(self.close_keys) do
     vim.keymap.set({ "n" }, k, function()
       if state.session == self then
@@ -117,14 +125,18 @@ function DisplaySession:post_start()
 end
 
 function DisplaySession:cancel()
+  if self._closed then
+    return
+  end
+
   self:close()
 end
 
-function DisplaySession:close()
-  if self.closed then
+function DisplaySession:close(done)
+  if self._closed then
     return
   end
-  self.closed = true
+  self._closed = true
 
   if self._timer then
     pcall(self._timer.stop, self._timer)
@@ -153,14 +165,20 @@ function DisplaySession:close()
       pcall(cb)
     end)
   end
+  if done then
+    vim.schedule(function()
+      done()
+    end)
+  end
 end
 
 ---@param lines minibuffer.core.HighlightLine[]
 ---@return boolean
 function DisplaySession:update_lines(lines)
-  if self.closed then
+  if self._closed then
     return false
   end
+
   self.lines = lines
   self:render()
   return true

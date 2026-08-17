@@ -1,11 +1,3 @@
----@class minibuffer.examples.DiagnosticsOpts
----@field scope? "buffer"|"workspace"
-
----@type minibuffer.examples.DiagnosticsOpts
-local opts = {
-  scope = "workspace",
-}
-
 local severity_names = {
   [vim.diagnostic.severity.ERROR] = "Error",
   [vim.diagnostic.severity.WARN] = "Warn",
@@ -61,14 +53,14 @@ local function format_fn(item)
   }
 end
 
-local function filter_fn(items, input)
-  if input == "" then
-    return items
+local function filter_fn(ctx)
+  if ctx.input == "" then
+    return ctx.items
   end
 
   local lookup = {}
   local keys = {}
-  for _, item in ipairs(items) do
+  for _, item in ipairs(ctx.items) do
     local key = table.concat({
       item.message,
       item.file,
@@ -79,7 +71,7 @@ local function filter_fn(items, input)
     lookup[key] = item
   end
 
-  local matches = vim.fn.matchfuzzy(keys, input)
+  local matches = vim.fn.matchfuzzy(keys, ctx.input)
   local results = {}
   for _, key in ipairs(matches) do
     results[#results + 1] = lookup[key]
@@ -87,22 +79,28 @@ local function filter_fn(items, input)
   return results
 end
 
----@param o? minibuffer.examples.DiagnosticsOpts
-return function(o)
-  opts = vim.tbl_deep_extend("force", opts, o or {})
+---@class minibuffer.examples.DiagnosticsOpts
+---@field scope? "buffer"|"workspace"
+
+---@param opts? minibuffer.examples.DiagnosticsOpts
+return function(opts)
+  opts = vim.tbl_deep_extend("force", { scope = "workspace" }, opts or {})
+  local diagnostics = gather_diagnostics(opts.scope)
 
   require("minibuffer").select({
     resumable = true,
     prompt = opts.scope == "buffer" and "Buffer Diagnostics: "
       or "Workspace Diagnostics: ",
-    items = gather_diagnostics(opts.scope),
     multi = false,
-    allow_shrink = false,
+    dynamic_height = false,
     max_height = 15,
+    fetch_fn = function(_, cb)
+      cb(diagnostics)
+    end,
     format_fn = format_fn,
     filter_fn = filter_fn,
     on_select = function(selection)
-      local item = selection[1]
+      local item = selection[1].item
       if not item then
         return
       end

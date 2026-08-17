@@ -108,7 +108,7 @@ vim.g.minibuffer = {
   cmd = {
     -- NOTE: minibuffer cmd is not compatible with command line plugins that force `wildtrigger()` each `wildchar` such as mini.cmdline
     enabled = true, -- Enable command line wildmenu replacement through the minibuffer
-    dynamic_height = false, -- Automatically shrink and grow the command window as suggestions change
+    dynamic_height = false, -- Automatically shrink the command window as suggestions change
     max_height = 15, -- Maximum height when using the command line
    },
 }

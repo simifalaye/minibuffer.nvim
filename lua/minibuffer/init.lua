@@ -135,7 +135,7 @@ function M.initialize()
         firstc = firstc,
         initial_input = cmdbuff,
         initial_cursor_pos = pos,
-        allow_shrink = conf.cmd.dynamic_height,
+        dynamic_height = conf.cmd.dynamic_height,
         max_height = conf.cmd.max_height,
         win_sizes = save_win_sizes,
       })
@@ -146,12 +146,7 @@ function M.initialize()
       return
     end
 
-    cmd_session.input = cmdbuff
-    cmd_session.cursor_pos = pos
-    cmd_session:refresh_suggestions()
-    if cmd_session and state.session == cmd_session and not cmd_session.closed then
-      cmd_session:render()
-    end
+    cmd_session:set_input(cmdbuff, pos)
   end
   cmdline.cmdline_hide = function(level, abort)
     cmdbuff, prev_cmdbuff, prev_pos = nil, nil, nil

@@ -21,13 +21,14 @@ ScratchSession = ScratchSession
 function ScratchSession.new(opts)
   opts = opts or {}
   local self = setmetatable({
-    closed = false,
     resumable = false,
     buf = opts.buf,
     win_config = opts.win_config,
     enter = opts.enter,
+
+    _closed = false,
+    _win = -1,
   }, ScratchSession)
-  self._win = -1
 
   return self
 end
@@ -48,7 +49,7 @@ function ScratchSession:pre_start()
     return
   end
 
-  self.closed = false
+  self._closed = false
   state.win_sizes = util.get_window_sizes()
   state.win_views = util.get_win_views()
 
@@ -56,6 +57,10 @@ function ScratchSession:pre_start()
 end
 
 function ScratchSession:render()
+  if self._closed then
+    return
+  end
+
   local cmd_win = util.get_cmd_win()
   if not cmd_win then
     return
@@ -110,42 +115,49 @@ end
 function ScratchSession:post_start() end
 
 function ScratchSession:cancel()
+  if self._closed then
+    return
+  end
+
   self:close()
 end
 
-function ScratchSession:close()
-  if self.closed then
+function ScratchSession:close(done)
+  if self._closed then
     return
   end
-  self.closed = true
+  self._closed = true
 
-  local function cleanup()
-    if vim.api.nvim_win_is_valid(self._win) then
-      pcall(vim.api.nvim_win_close, self._win, true)
-    end
-    self._win = -1
+  if vim.api.nvim_win_is_valid(self._win) then
+    pcall(vim.api.nvim_win_close, self._win, true)
+  end
+  self._win = -1
 
-    local win = util.get_cmd_win()
-    if not win then
-      return
-    end
-
-    util.wipe_cmd_buffer()
-    util.set_win_height(win, ext.cmdheight, true)
-    if state.active_window and vim.api.nvim_win_is_valid(state.active_window) then
-      pcall(vim.api.nvim_set_current_win, state.active_window)
-    end
-    util.restore_window_sizes(state.win_sizes)
-    util.restore_win_views(state.win_views)
+  local win = util.get_cmd_win()
+  if not win then
+    return
   end
 
-  cleanup()
+  util.wipe_cmd_buffer()
+  util.set_win_height(win, ext.cmdheight, true)
+  if state.active_window and vim.api.nvim_win_is_valid(state.active_window) then
+    pcall(vim.api.nvim_set_current_win, state.active_window)
+  end
+  util.restore_window_sizes(state.win_sizes)
+  util.restore_win_views(state.win_views)
+
   state.cleanup()
+
+  if done then
+    vim.schedule(function()
+      done()
+    end)
+  end
 end
 
 ---@param config vim.api.keyset.win_config
 function ScratchSession:set_win_config(config)
-  if self.closed then
+  if self._closed then
     return false
   end
 

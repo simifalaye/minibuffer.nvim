@@ -198,13 +198,12 @@ end
 ---@param height integer
 ---@param sync_cmdheight boolean
 function M.set_win_height(win, height, sync_cmdheight)
-  if not vim.api.nvim_win_is_valid(win) then
-    return
-  end
-  if height == 0 then
-    vim.api.nvim_win_set_config(win, { hide = true, height = 1 })
-  elseif vim.api.nvim_win_get_height(win) ~= height then
-    vim.api.nvim_win_set_config(win, { hide = false, height = height })
+  if vim.api.nvim_win_is_valid(win) then
+    if height == 0 then
+      vim.api.nvim_win_set_config(win, { hide = true, height = 1 })
+    elseif vim.api.nvim_win_get_height(win) ~= height then
+      vim.api.nvim_win_set_config(win, { hide = false, height = height })
+    end
   end
   if sync_cmdheight and vim.o.cmdheight ~= height then
     -- Avoid moving the cursor with 'splitkeep' = "screen", and altering the user
@@ -274,11 +273,10 @@ function M.write_highlighted_lines(buf, ns, lines_data, opts)
   end
 end
 
----@alias minibuffer.util.Keyset fun(mode:string|string[], lhs:string, rhs:string|function, opts?:vim.keymap.set.Opts)
-
 ---@param conditional fun():boolean
+---@param base_opts vim.keymap.set.Opts?
 ---@return minibuffer.util.Keyset
-function M.create_condition_keyset(conditional)
+function M.create_condition_keyset(conditional, base_opts)
   return function(mode, lhs, rhs, opts)
     opts = opts or {}
 
@@ -302,7 +300,12 @@ function M.create_condition_keyset(conditional)
       end
     end
 
-    vim.keymap.set(mode, lhs, wrapped_rhs, opts)
+    vim.keymap.set(
+      mode,
+      lhs,
+      wrapped_rhs,
+      vim.tbl_deep_extend("force", base_opts or {}, opts or {})
+    )
   end
 end
 
