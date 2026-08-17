@@ -115,15 +115,15 @@ return function()
     fetch_fn = function(input, cb)
       vim.system({ "man", "-k", input ~= "" and input or "." }, {
         text = true,
-      }, function(result)
-        if result.code ~= 0 then
+      }, function(res)
+        if res.code ~= 0 then
           vim.schedule(function()
-            cb({})
+            cb(nil, res.stderr)
           end)
           return
         end
 
-        local items = parse_manpages(vim.split(result.stdout or "", "\n", {
+        local items = parse_manpages(vim.split(res.stdout or "", "\n", {
           trimempty = true,
         }))
         vim.schedule(function()

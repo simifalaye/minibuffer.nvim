@@ -52,13 +52,13 @@ local function load_files(opts, cb)
 
   vim.system(cmd, proc_opts, function(res)
     loading = false
-    if res.code ~= 0 or not res.stdout then
-      all_files = {}
-    else
-      all_files = vim.split(res.stdout, "\n", { trimempty = true })
+    if res.code ~= 0 then
+      cb(nil, res.stderr)
+      return
     end
+
     loaded_cwd = opts.cwd
-    cb(all_files)
+    cb(vim.split(res.stdout, "\n", { trimempty = true }))
   end)
 end
 
@@ -94,9 +94,7 @@ return function(opts)
     max_height = 15,
     fetch_fn = function(_, cb)
       debounce(function()
-        load_files(opts, function(files)
-          cb(files)
-        end)
+        load_files(opts, cb)
       end)
     end,
     format_fn = format_fn,

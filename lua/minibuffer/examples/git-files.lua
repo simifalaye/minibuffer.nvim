@@ -57,21 +57,16 @@ return function(opts)
       end
       vim.system(g_opts, {
         text = true,
-      }, function(result)
-        if result.code ~= 0 then
-          vim.schedule(function()
-            cb({})
-          end)
+      }, function(res)
+        if res.code ~= 0 then
+          cb(nil, res.stderr)
           return
         end
 
-        local items = vim.split(result.stdout or "", "\n", {
+        local items = vim.split(res.stdout or "", "\n", {
           trimempty = true,
         })
-
-        vim.schedule(function()
-          cb(items)
-        end)
+        cb(items)
       end)
     end,
     format_fn = format_fn,

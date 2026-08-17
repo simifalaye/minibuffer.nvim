@@ -74,15 +74,17 @@ local function run_grep(opts, input, cb)
 
     local out = {}
 
-    if res.code == 0 and res.stdout then
-      for _, line in ipairs(vim.split(res.stdout, "\n", { trimempty = true })) do
-        local item = parse_rg_line(line)
-        if item then
-          out[#out + 1] = item
-        end
-      end
+    if res.code ~= 0 then
+      cb(nil, res.stderr)
+      return
     end
 
+    for _, line in ipairs(vim.split(res.stdout, "\n", { trimempty = true })) do
+      local item = parse_rg_line(line)
+      if item then
+        out[#out + 1] = item
+      end
+    end
     cb(out)
   end)
 end
@@ -120,9 +122,7 @@ return function(opts)
     max_height = 18,
     fetch_fn = function(input, cb)
       debounce(function()
-        run_grep(opts, input, function(files)
-          cb(files)
-        end)
+        run_grep(opts, input, cb)
       end)
     end,
     format_fn = format_fn,

@@ -154,7 +154,7 @@ return function()
         if selected then
           if selected then
             sess:close(function()
-              vim.cmd("split " .. selected.bufnr)
+              vim.cmd("split")
               vim.api.nvim_set_current_buf(selected.bufnr)
             end)
           end
@@ -165,7 +165,7 @@ return function()
         if selected then
           if selected then
             sess:close(function()
-              vim.cmd("vsplit " .. selected.bufnr)
+              vim.cmd("vsplit")
               vim.api.nvim_set_current_buf(selected.bufnr)
             end)
           end
