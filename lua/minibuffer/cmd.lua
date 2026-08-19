@@ -15,8 +15,6 @@ local M = {}
 ---@field original_cmdheight integer Command-line height before enabling the UI.
 ---@field items minibuffer.cmd.PopupItems
 ---@field selected integer Zero-based selected completion index, or -1 when nothing is selected.
----@field win_sizes table<integer, integer>? Window sizes captured before changing cmdheight.
----@field win_views table? Window views captured before changing cmdheight.
 ---@field commands table<string, vim.api.keyset.command_info> Command info
 
 ---@type minibuffer.cmd.State
@@ -30,8 +28,6 @@ local s = {
   original_cmdheight = 0,
   items = {},
   selected = -1,
-  win_sizes = nil,
-  win_views = nil,
   commands = {},
 }
 
@@ -51,8 +47,6 @@ local function reset_state()
   s.items = {}
   s.selected = -1
   s.mark = nil
-  s.win_sizes = nil
-  s.win_views = nil
 end
 
 ---Destroy the completion display window and its buffer.
@@ -91,10 +85,6 @@ local function set_height(height)
   end
 
   vim.o.cmdheight = height + 1
-
-  if s.win_sizes then
-    util.resize_windows_for_cmdheight(s.win_sizes, height - ext.cmdheight)
-  end
 end
 
 ---Add command descriptions to completion items.
@@ -297,8 +287,6 @@ function M.enable()
   end
 
   s.original_cmdheight = vim.o.cmdheight
-  s.win_sizes = util.get_window_sizes()
-  s.win_views = util.get_win_views()
   s.commands = vim.api.nvim_get_commands({ builtin = false }) -- TODO: use true when implemented
 
   if not create_window() then
@@ -351,21 +339,11 @@ function M.disable()
   destroy_window()
 
   local original_cmdheight = s.original_cmdheight
-  local win_sizes = s.win_sizes
-  local win_views = s.win_views
 
   reset_state()
 
   vim.schedule(function()
     vim.o.cmdheight = original_cmdheight
-
-    if win_sizes then
-      util.restore_window_sizes(win_sizes)
-    end
-
-    if win_views then
-      util.restore_win_views(win_views)
-    end
   end)
 end
 
