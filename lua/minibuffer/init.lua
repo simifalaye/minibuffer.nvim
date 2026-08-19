@@ -83,92 +83,36 @@ function M.initialize()
     end,
   })
 
-  local config = require("minibuffer.config")
-  local cmdline = require("vim._core.ui2.cmdline")
-  local original_show = cmdline.cmdline_show
-  local original_hide = cmdline.cmdline_hide
-  local cmd_session ---@type minibuffer.core.CmdSession?
-  local save_win_sizes
-  local save_win_views
-
-  local cmdbuff, prev_pos, prev_cmdbuff
-  cmdline.cmdline_show = function(content, pos, firstc, prompt, indent, level, hl_id)
-    local conf = config.get()
-
-    -- Make sure to close any non-cmd sessions
-    if state.session and state.session ~= cmd_session then
-      state.session:close()
-    end
-
-    local lines = {} ---@type string[]
-    for line in (prompt .. "\n"):gmatch("(.-)\n") do
-      lines[#lines + 1] = vim.fn.strtrans(line)
-    end
-
-    cmdbuff = ""
-    for _, chunk in ipairs(content) do
-      cmdbuff = cmdbuff .. chunk[2]
-    end
-    lines[#lines] = ("%s%s "):format(lines[#lines], vim.fn.strtrans(cmdbuff))
-
-    if cmdbuff == prev_cmdbuff and pos == prev_pos then
-      return
-    end
-    prev_cmdbuff, prev_pos = cmdbuff, pos
-
-    -- We need to save win info before ui2 cmdline code has run
-    if conf.cmd.enabled and not cmd_session then
-      local util = require("minibuffer.util")
-      save_win_sizes = util.get_window_sizes()
-      save_win_views = util.get_win_views()
-    end
-
-    -- ui2 establishes the command-line buffer and its base height. Render the
-    -- suggestion UI afterwards so our cmdheight is the final value.
-    original_show(content, pos, firstc, prompt, indent, level, hl_id)
-    if not conf.cmd.enabled then
-      return
-    end
-
-    if not cmd_session then
-      local session = require("minibuffer.sessions.cmd").new({
-        firstc = firstc,
-        initial_input = cmdbuff,
-        initial_cursor_pos = pos,
-        dynamic_height = conf.cmd.dynamic_height,
-        max_height = conf.cmd.max_height,
-        win_sizes = save_win_sizes,
-      })
-      if not start_session(session, true) then
-        return
+  local cmd = require("minibuffer.cmd")
+  local cmd_group = vim.api.nvim_create_augroup("minibuffer.cmd.pum", { clear = true })
+  vim.api.nvim_create_autocmd("CmdlineEnter", {
+    group = cmd_group,
+    pattern = { ":", "/", "\\?" },
+    desc = "Minibuffer cmd pum",
+    callback = function()
+      -- Make sure to close any non-cmd sessions
+      if state.session then
+        state.session:close()
       end
-      cmd_session = session
-      return
-    end
-
-    cmd_session:set_input(cmdbuff, pos)
-  end
-  cmdline.cmdline_hide = function(level, abort)
-    cmdbuff, prev_cmdbuff, prev_pos = nil, nil, nil
-    if cmd_session then
-      cmd_session:close()
-    end
-
-    -- Leave ui2's hide as the final layout operation.
-    original_hide(level, abort)
-
-    if cmd_session then
-      -- We need to restore win sizes after ui2 cmdline code has ran
-      local util = require("minibuffer.util")
-      if save_win_sizes then
-        util.restore_window_sizes(save_win_sizes)
+      cmd.enable()
+    end,
+  })
+  vim.api.nvim_create_autocmd("CmdlineLeave", {
+    group = cmd_group,
+    pattern = { ":", "/", "\\?" },
+    desc = "Minibuffer cmd pum",
+    callback = function()
+      cmd.disable()
+    end,
+  })
+  vim.api.nvim_create_autocmd("CmdlineChanged", {
+    group = cmd_group,
+    callback = function()
+      if vim.fn.mode() == "c" then
+        vim.fn.wildtrigger()
       end
-      if save_win_views then
-        util.restore_win_views(save_win_views)
-      end
-      cmd_session = nil
-    end
-  end
+    end,
+  })
 
   -- Wrap win config functions to detect buffers destined for the minibuffer
   ---@diagnostic disable-next-line: duplicate-set-field
