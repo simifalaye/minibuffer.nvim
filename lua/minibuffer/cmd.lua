@@ -218,9 +218,7 @@ local function on_event(event, ...)
 
     s.items = enrich_items(items)
     s.selected = selected
-
     render()
-    return
   elseif event == "popupmenu_select" then
     s.selected = ...
     if s.selected < 0 or not valid_buf() then
@@ -238,6 +236,14 @@ local function on_event(event, ...)
       0,
       { line_hl_group = "MinibufferSelection" }
     )
+  elseif event == "popupmenu_hide" then
+    local conf = require("minibuffer.config").get()
+    if conf.cmd.autotrigger then
+      return
+    end
+    s.items = {}
+    s.selected = -1
+    render()
   end
 end
 
@@ -305,27 +311,29 @@ function M.enable()
     ext_popupmenu = true,
   }, on_event)
 
-  ---Accept the current completion and immediately trigger the next one.
-  vim.keymap.set("c", "<C-y>", function()
-    if vim.fn.wildmenumode() == 0 then
-      return "<C-y>"
-    end
-
-    vim.api.nvim_feedkeys(vim.keycode("<C-y>"), "n", false)
-
-    vim.schedule(function()
-      if s.is_active and vim.fn.mode() == "c" then
-        vim.fn.wildtrigger()
+  if conf.cmd.autotrigger then
+    ---Accept the current completion and immediately trigger the next one.
+    vim.keymap.set("c", "<C-y>", function()
+      if vim.fn.wildmenumode() == 0 then
+        return "<C-y>"
       end
-    end)
 
-    return ""
-  end, {
-    expr = true,
-    nowait = true,
-    silent = true,
-    noremap = true,
-  })
+      vim.api.nvim_feedkeys(vim.keycode("<C-y>"), "n", false)
+
+      vim.schedule(function()
+        if s.is_active and vim.fn.mode() == "c" then
+          vim.fn.wildtrigger()
+        end
+      end)
+
+      return ""
+    end, {
+      expr = true,
+      nowait = true,
+      silent = true,
+      noremap = true,
+    })
+  end
 end
 
 ---Disable the custom command-line completion popup.

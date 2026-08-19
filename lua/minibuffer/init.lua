@@ -108,11 +108,17 @@ function M.initialize()
   vim.api.nvim_create_autocmd("CmdlineChanged", {
     group = cmd_group,
     callback = function()
-      if vim.fn.mode() == "c" then
+      local conf = require("minibuffer.config").get()
+      if conf.cmd.autotrigger and vim.fn.mode() == "c" then
         vim.fn.wildtrigger()
       end
     end,
   })
+
+  local conf = require("minibuffer.config").get()
+  if conf.cmd.autotrigger then
+    vim.o.wildmode = "noselect,full"
+  end
 
   -- Wrap win config functions to detect buffers destined for the minibuffer
   ---@diagnostic disable-next-line: duplicate-set-field

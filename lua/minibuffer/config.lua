@@ -2,6 +2,7 @@ local M = {}
 
 ---@class minibuffer.config.cmd
 ---@field enabled boolean|nil
+---@field autotrigger boolean|nil
 ---@field dynamic_height boolean|nil
 ---@field max_height integer|nil
 
@@ -19,6 +20,7 @@ local function init()
   local default_config = {
     cmd = {
       enabled = true,
+      autotrigger = false,
       dynamic_height = false,
       max_height = 15,
     },
