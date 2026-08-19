@@ -20,7 +20,7 @@ local function init()
   local default_config = {
     cmd = {
       enabled = true,
-      autotrigger = false,
+      autotrigger = true,
       dynamic_height = false,
       max_height = 15,
     },
