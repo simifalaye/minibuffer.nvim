@@ -53,10 +53,10 @@ end
 ---@return nil
 local function destroy_window()
   if valid_win() then
-    vim.api.nvim_win_close(s.win, true)
+    local _, _ = pcall(vim.api.nvim_win_close, s.win, true)
   end
   if valid_buf() then
-    vim.api.nvim_buf_delete(s.buf, { force = true })
+    local _, _ = pcall(vim.api.nvim_buf_delete, s.buf, { force = true })
   end
 
   s.win = nil
