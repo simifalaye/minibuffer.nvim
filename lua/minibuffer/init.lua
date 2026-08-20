@@ -66,14 +66,14 @@ function M.initialize()
     end
   end
   setup_hl()
+
+  -- Setup autocommands
   vim.api.nvim_create_autocmd("ColorScheme", {
     group = state.augroup,
     callback = function()
       setup_hl()
     end,
   })
-
-  -- Re-render on resize
   vim.api.nvim_create_autocmd("VimResized", {
     group = state.augroup,
     callback = function()
@@ -82,11 +82,8 @@ function M.initialize()
       end
     end,
   })
-
-  local cmd = require("minibuffer.cmd")
-  local cmd_group = vim.api.nvim_create_augroup("minibuffer.cmd.pum", { clear = true })
   vim.api.nvim_create_autocmd("CmdlineEnter", {
-    group = cmd_group,
+    group = state.augroup,
     pattern = { ":", "/", "\\?" },
     desc = "Minibuffer cmd pum",
     callback = function()
@@ -94,19 +91,19 @@ function M.initialize()
       if state.session then
         state.session:close()
       end
-      cmd.enable()
+      require("minibuffer.cmd").enable()
     end,
   })
   vim.api.nvim_create_autocmd("CmdlineLeave", {
-    group = cmd_group,
+    group = state.augroup,
     pattern = { ":", "/", "\\?" },
     desc = "Minibuffer cmd pum",
     callback = function()
-      cmd.disable()
+      require("minibuffer.cmd").disable()
     end,
   })
   vim.api.nvim_create_autocmd("CmdlineChanged", {
-    group = cmd_group,
+    group = state.augroup,
     callback = function()
       local conf = require("minibuffer.config").get()
       if conf.cmd.autotrigger and vim.fn.mode() == "c" then

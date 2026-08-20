@@ -1,5 +1,7 @@
+local state = require("minibuffer.state")
 local util = require("minibuffer.util")
-local ext = util.get_ext()
+
+local cmdheight_autocmd_created = false
 
 local M = {}
 
@@ -11,11 +13,11 @@ local M = {}
 ---@field buf integer? Completion display buffer.
 ---@field win integer? Completion display window.
 ---@field mark integer? Selection extmark.
----@field ns integer Namespace used for the completion UI.
----@field original_cmdheight integer Command-line height before enabling the UI.
 ---@field items minibuffer.cmd.PopupItems
 ---@field selected integer Zero-based selected completion index, or -1 when nothing is selected.
 ---@field commands table<string, vim.api.keyset.command_info> Command info
+---@field user_cmdheight integer The user configured cmdheight
+---@field setting_cmdheight boolean Whether we are in the process of setting the cmdheight
 
 ---@type minibuffer.cmd.State
 local s = {
@@ -24,11 +26,11 @@ local s = {
   buf = nil,
   win = nil,
   mark = nil,
-  ns = vim.api.nvim_create_namespace("minibuffer.cmd"),
-  original_cmdheight = 0,
   items = {},
   selected = -1,
   commands = {},
+  user_cmdheight = vim.o.cmdheight,
+  setting_cmdheight = false,
 }
 
 ---@return boolean
@@ -64,6 +66,25 @@ local function destroy_window()
   s.mark = nil
 end
 
+--- Set cmdheight without modifying the internal stored cmdheight
+--- while still allowing any other OptionSet autocmds to run
+---@param value integer
+local function set_cmdheight(value)
+  if vim.o.cmdheight == value then
+    return
+  end
+
+  s.setting_cmdheight = true
+  local ok, err = xpcall(function()
+    vim.o.cmdheight = value
+  end, debug.traceback)
+  s.setting_cmdheight = false
+
+  if not ok then
+    error(err)
+  end
+end
+
 ---Set the completion display height and corresponding command-line height.
 ---@param height integer Completion display height.
 ---@return nil
@@ -84,7 +105,7 @@ local function set_height(height)
     })
   end
 
-  vim.o.cmdheight = height + 1
+  set_cmdheight(height + 1)
 end
 
 ---Add command descriptions to completion items.
@@ -158,7 +179,7 @@ local function render()
   local count = #s.items
   if count == 0 then
     vim.api.nvim_buf_set_lines(s.buf, 0, -1, false, {})
-    vim.api.nvim_buf_clear_namespace(s.buf, s.ns, 0, -1)
+    vim.api.nvim_buf_clear_namespace(s.buf, state.ns, 0, -1)
 
     set_height(0)
     return
@@ -178,13 +199,13 @@ local function render()
   for _, item in ipairs(s.items) do
     lines[#lines + 1] = format_item(item)
   end
-  util.write_highlighted_lines(s.buf, s.ns, lines)
+  util.write_highlighted_lines(s.buf, state.ns, lines)
 
   if s.selected >= 0 and s.selected < count then
     pcall(
       vim.api.nvim_buf_set_extmark,
       s.buf,
-      s.ns,
+      state.ns,
       s.selected,
       0,
       { line_hl_group = "MinibufferSelection" }
@@ -216,12 +237,12 @@ local function on_event(event, ...)
     end
 
     if s.mark then
-      vim.api.nvim_buf_del_extmark(s.buf, s.ns, s.mark)
+      vim.api.nvim_buf_del_extmark(s.buf, state.ns, s.mark)
     end
 
     s.mark = vim.api.nvim_buf_set_extmark(
       s.buf,
-      s.ns,
+      state.ns,
       s.selected,
       0,
       { line_hl_group = "MinibufferSelection" }
@@ -282,11 +303,22 @@ function M.enable()
     return
   end
 
+  if not cmdheight_autocmd_created then
+    vim.api.nvim_create_autocmd("OptionSet", {
+      group = state.augroup,
+      pattern = { "cmdheight" },
+      callback = function(_)
+        if not s.setting_cmdheight then
+          s.user_cmdheight = vim.v.option_new
+        end
+      end,
+    })
+  end
+
   if s.is_active then
     return
   end
 
-  s.original_cmdheight = vim.o.cmdheight
   s.commands = vim.api.nvim_get_commands({ builtin = false }) -- TODO: use true when implemented
 
   if not create_window() then
@@ -295,7 +327,7 @@ function M.enable()
 
   s.is_active = true
 
-  vim.ui_attach(s.ns, {
+  vim.ui_attach(state.ns, {
     ext_popupmenu = true,
   }, on_event)
 
@@ -333,17 +365,16 @@ function M.disable()
 
   s.is_active = false
 
-  vim.ui_detach(s.ns)
-  vim.keymap.del("c", "<C-y>")
+  vim.ui_detach(state.ns)
+
+  local _, _ = pcall(vim.keymap.del, "c", "<C-y>")
 
   destroy_window()
-
-  local original_cmdheight = s.original_cmdheight
 
   reset_state()
 
   vim.schedule(function()
-    vim.o.cmdheight = original_cmdheight
+    set_cmdheight(s.user_cmdheight)
   end)
 end
 
