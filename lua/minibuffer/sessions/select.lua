@@ -355,6 +355,9 @@ function SelectSession:post_start()
   vim.api.nvim_win_call(self._entry.win, function()
     vim.cmd("startinsert")
   end)
+  if self._input ~= "" then
+    pcall(vim.api.nvim_feedkeys, self._input, "t", false)
+  end
   vim.api.nvim_set_option_value("modified", false, { buf = self._entry.buf })
 
   self:refresh_results()
