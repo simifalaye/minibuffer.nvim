@@ -239,7 +239,10 @@ function SelectSession:render()
   util.set_win_height(self._display.win, display_height)
   util.set_win_height(self._entry.win, display_height + 2)
   util.set_cmdheight(display_height + 2)
-  util.resize_windows_for_cmdheight(state.win_sizes, display_height - util.get_ext().cmdheight)
+  util.resize_windows_for_cmdheight(
+    state.win_sizes,
+    display_height - util.get_ext().cmdheight
+  )
 
   -- Build display output
   local start_idx = self._scroll_offset + 1
@@ -360,7 +363,9 @@ function SelectSession:post_start()
   end
   vim.api.nvim_set_option_value("modified", false, { buf = self._entry.buf })
 
-  self:refresh_results()
+  if #self._items == 0 then
+    self:refresh_results()
+  end
 end
 
 function SelectSession:cancel()

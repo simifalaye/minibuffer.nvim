@@ -343,7 +343,9 @@ function InputSession:post_start()
   end
   vim.api.nvim_set_option_value("modified", false, { buf = self._entry.buf })
 
-  self:refresh_suggestions()
+  if #self._items == 0 then
+    self:refresh_suggestions()
+  end
 end
 
 function InputSession:cancel()
