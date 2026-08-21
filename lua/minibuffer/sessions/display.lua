@@ -1,6 +1,5 @@
 local state = require("minibuffer.state")
 local util = require("minibuffer.util")
-local ext = util.get_ext()
 
 ---@class minibuffer.core.DisplaySession : minibuffer.core.Session
 ---@field lines minibuffer.core.HighlightLine[]
@@ -100,8 +99,8 @@ function DisplaySession:render()
   if not self.dynamic_height then
     new_height = math.max(vim.api.nvim_win_get_height(win), new_height)
   end
-  util.set_win_height(win, new_height + 1, true)
-  util.resize_windows_for_cmdheight(state.win_sizes, new_height - ext.cmdheight)
+  util.set_cmdheight(new_height + 1)
+  util.resize_windows_for_cmdheight(state.win_sizes, new_height - util.get_ext().cmdheight)
   vim.cmd.redraw()
 end
 
@@ -150,7 +149,7 @@ function DisplaySession:close(done)
   end
 
   util.wipe_cmd_buffer()
-  util.set_win_height(win, ext.cmdheight, true)
+  util.set_cmdheight()
   if state.active_window and vim.api.nvim_win_is_valid(state.active_window) then
     pcall(vim.api.nvim_set_current_win, state.active_window)
   end

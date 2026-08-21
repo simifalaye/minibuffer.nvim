@@ -1,6 +1,5 @@
 local state = require("minibuffer.state")
 local util = require("minibuffer.util")
-local ext = util.get_ext()
 
 ---@param conf { buf:integer|nil, win:integer|nil }
 local function win_state_is_valid(conf)
@@ -123,8 +122,8 @@ function SelectSession:overridable()
 end
 
 function SelectSession:pre_start()
-  local win = util.get_cmd_win()
-  if not win then
+  local cmd_win = util.get_cmd_win()
+  if not cmd_win then
     return
   end
 
@@ -147,7 +146,7 @@ function SelectSession:pre_start()
     row = vim.o.lines - 1,
     col = 0,
     style = "minimal",
-    zindex = vim.api.nvim_win_get_config(win).zindex + 2,
+    zindex = vim.api.nvim_win_get_config(cmd_win).zindex + 2,
     border = { " ", "", " ", " ", " ", " ", " ", " " },
   }
   display_winopts.footer = self.footer_fn(self:get_ctx())
@@ -187,7 +186,7 @@ function SelectSession:pre_start()
     row = vim.o.lines - 1,
     col = 0,
     style = "minimal",
-    zindex = vim.api.nvim_win_get_config(win).zindex + 1,
+    zindex = vim.api.nvim_win_get_config(cmd_win).zindex + 1,
     border = "none",
   })
   vim.wo[self._entry.win].wrap = false
@@ -237,9 +236,10 @@ function SelectSession:render()
   })
 
   -- Set heights
-  util.set_win_height(self._display.win, display_height, false)
-  util.set_win_height(self._entry.win, display_height + 2, true)
-  util.resize_windows_for_cmdheight(state.win_sizes, display_height - ext.cmdheight)
+  util.set_win_height(self._display.win, display_height)
+  util.set_win_height(self._entry.win, display_height + 2)
+  util.set_cmdheight(display_height + 2)
+  util.resize_windows_for_cmdheight(state.win_sizes, display_height - util.get_ext().cmdheight)
 
   -- Build display output
   local start_idx = self._scroll_offset + 1
@@ -396,7 +396,7 @@ function SelectSession:close(done)
     cleaned_up = true
     vim.cmd("stopinsert")
 
-    util.set_win_height(self._entry.win, ext.cmdheight, true)
+    util.set_cmdheight()
 
     if self._display.win and vim.api.nvim_win_is_valid(self._display.win) then
       pcall(vim.api.nvim_win_close, self._display.win, true)

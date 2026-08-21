@@ -18,27 +18,34 @@ local function start_session(session, force)
     vim.notify("[minibuffer] Session active (use force=true).", vim.log.levels.INFO)
     return false
   end
-  if state.session then
-    state.session:close()
+
+  local function start()
+    state.session = session
+    state.pending_render = false
+    state.active_window = vim.api.nvim_get_current_win()
+
+    vim.api.nvim_create_autocmd("FocusLost", {
+      callback = function()
+        vim.schedule(function()
+          if state.session then
+            state.session:close()
+          end
+        end)
+      end,
+    })
+
+    session:pre_start()
+    session:render()
+    session:post_start()
   end
 
-  state.session = session
-  state.pending_render = false
-  state.active_window = vim.api.nvim_get_current_win()
-
-  vim.api.nvim_create_autocmd("FocusLost", {
-    callback = function()
-      vim.schedule(function()
-        if state.session then
-          state.session:close()
-        end
-      end)
-    end,
-  })
-
-  session:pre_start()
-  session:render()
-  session:post_start()
+  if state.session then
+    state.session:close(function()
+      start()
+    end)
+  else
+    start()
+  end
 
   return true
 end
@@ -51,6 +58,9 @@ function M.initialize()
   if state.initialized then
     return
   end
+
+  local config = require("minibuffer.config")
+  local cmd = require("minibuffer.cmd")
 
   -- Setup highlights
   local function setup_hl()
@@ -89,9 +99,12 @@ function M.initialize()
     callback = function()
       -- Make sure to close any non-cmd sessions
       if state.session then
-        state.session:close()
+        state.session:close(function()
+          cmd.enable()
+        end)
+      else
+        cmd.enable()
       end
-      require("minibuffer.cmd").enable()
     end,
   })
   vim.api.nvim_create_autocmd("CmdlineLeave", {
@@ -99,7 +112,7 @@ function M.initialize()
     pattern = { ":", "/", "\\?" },
     desc = "Minibuffer cmd pum",
     callback = function()
-      require("minibuffer.cmd").disable()
+      cmd.disable()
     end,
   })
   vim.api.nvim_create_autocmd("CmdlineChanged", {
@@ -112,9 +125,24 @@ function M.initialize()
     end,
   })
 
-  local conf = require("minibuffer.config").get()
-  if conf.cmd.autotrigger then
+  if config.get().cmd.autotrigger then
     vim.o.wildmode = "noselect,full"
+  end
+
+  local cmdline = require("vim._core.ui2.cmdline")
+  local original_show = cmdline.cmdline_show
+  local original_hide = cmdline.cmdline_hide
+  cmdline.cmdline_show = function(content, pos, firstc, prompt, indent, level, hl_id)
+    original_show(content, pos, firstc, prompt, indent, level, hl_id)
+    -- Set cmdheight after ui2s layout operations to ensure we override it
+    if config.get().cmd.enabled then
+      cmd.update_cmdheight()
+    end
+  end
+  cmdline.cmdline_hide = function(level, abort)
+    original_hide(level, abort)
+    -- Run any final cleanup code after ui2 has finished it's layout operations
+    cmd.cleanup()
   end
 
   -- Wrap win config functions to detect buffers destined for the minibuffer

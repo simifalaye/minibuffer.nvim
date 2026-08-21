@@ -1,6 +1,5 @@
 local state = require("minibuffer.state")
 local util = require("minibuffer.util")
-local ext = util.get_ext()
 
 ---@class minibuffer.core.ScratchSession : minibuffer.core.Session
 ---@field buf integer
@@ -107,8 +106,8 @@ function ScratchSession:render()
     additional_height = additional_height + 2
   end
 
-  util.set_win_height(cmd_win, cfg.height + additional_height, true)
-  util.resize_windows_for_cmdheight(state.win_sizes, cfg.height - ext.cmdheight)
+  util.set_cmdheight(cfg.height + additional_height)
+  util.resize_windows_for_cmdheight(state.win_sizes, cfg.height - util.get_ext().cmdheight)
   vim.cmd.redraw()
 end
 
@@ -139,7 +138,7 @@ function ScratchSession:close(done)
   end
 
   util.wipe_cmd_buffer()
-  util.set_win_height(win, ext.cmdheight, true)
+  util.set_cmdheight()
   if state.active_window and vim.api.nvim_win_is_valid(state.active_window) then
     pcall(vim.api.nvim_set_current_win, state.active_window)
   end

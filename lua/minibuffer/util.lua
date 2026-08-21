@@ -194,18 +194,40 @@ function M.restore_win_views(views)
   end
 end
 
----@param win integer
+---@param win integer|nil
 ---@param height integer
----@param sync_cmdheight boolean
-function M.set_win_height(win, height, sync_cmdheight)
-  if vim.api.nvim_win_is_valid(win) then
-    if height == 0 then
-      vim.api.nvim_win_set_config(win, { hide = true, height = 1 })
-    elseif vim.api.nvim_win_get_height(win) ~= height then
-      vim.api.nvim_win_set_config(win, { hide = false, height = height })
-    end
+function M.set_win_height(win, height)
+  if not win or not vim.api.nvim_win_is_valid(win) then
+    return
   end
-  if sync_cmdheight and vim.o.cmdheight ~= height then
+  if vim.api.nvim_win_get_config(win).height == height then
+    return
+  end
+  if height == 0 then
+    vim.api.nvim_win_set_config(win, { hide = true, height = 1 })
+  elseif vim.api.nvim_win_get_height(win) ~= height then
+    vim.api.nvim_win_set_config(win, { hide = false, height = height })
+  end
+end
+
+---@param height integer|nil If nil the reset to ext.cmdheight
+function M.set_cmdheight(height)
+  local win = M.get_cmd_win()
+  if not win or not vim.api.nvim_win_is_valid(win) then
+    return
+  end
+  if vim.api.nvim_win_get_config(win).height == height then
+    return
+  end
+
+  height = height or ext.cmdheight
+  if height == 0 then
+    vim.api.nvim_win_set_config(win, { hide = true, height = 1 })
+  elseif vim.api.nvim_win_get_height(win) ~= height then
+    vim.api.nvim_win_set_config(win, { hide = false, height = height })
+  end
+
+  if vim.o.cmdheight ~= height then
     -- Avoid moving the cursor with 'splitkeep' = "screen", and altering the user
     -- configured value with noautocmd.
     vim._with({ noautocmd = true, o = { splitkeep = "screen" } }, function()

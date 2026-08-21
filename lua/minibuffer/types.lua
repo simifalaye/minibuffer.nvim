@@ -13,7 +13,7 @@
 ---@field render fun(self: minibuffer.core.Session)
 ---@field post_start fun(self: minibuffer.core.Session)
 ---@field cancel fun(self: minibuffer.core.Session)
----@field close fun(self: minibuffer.core.Session)
+---@field close fun(self: minibuffer.core.Session, done: fun()|nil)
 local Session = {}
 Session.__index = Session
 

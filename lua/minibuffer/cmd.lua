@@ -1,8 +1,6 @@
 local state = require("minibuffer.state")
 local util = require("minibuffer.util")
 
-local cmdheight_autocmd_created = false
-
 local M = {}
 
 ---@alias minibuffer.cmd.PopupItem any[]
@@ -16,8 +14,7 @@ local M = {}
 ---@field items minibuffer.cmd.PopupItems
 ---@field selected integer Zero-based selected completion index, or -1 when nothing is selected.
 ---@field commands table<string, vim.api.keyset.command_info> Command info
----@field user_cmdheight integer The user configured cmdheight
----@field setting_cmdheight boolean Whether we are in the process of setting the cmdheight
+---@field cmdheight integer The value that cmdheight should currently be set to
 
 ---@type minibuffer.cmd.State
 local s = {
@@ -29,8 +26,7 @@ local s = {
   items = {},
   selected = -1,
   commands = {},
-  user_cmdheight = vim.o.cmdheight,
-  setting_cmdheight = false,
+  cmdheight = vim.o.cmdheight,
 }
 
 ---@return boolean
@@ -43,48 +39,6 @@ local function valid_win()
   return s.win ~= nil and vim.api.nvim_win_is_valid(s.win)
 end
 
----Reset transient completion state.
----@return nil
-local function reset_state()
-  s.items = {}
-  s.selected = -1
-  s.mark = nil
-end
-
----Destroy the completion display window and its buffer.
----@return nil
-local function destroy_window()
-  if valid_win() then
-    local _, _ = pcall(vim.api.nvim_win_close, s.win, true)
-  end
-  if valid_buf() then
-    local _, _ = pcall(vim.api.nvim_buf_delete, s.buf, { force = true })
-  end
-
-  s.win = nil
-  s.buf = nil
-  s.mark = nil
-end
-
---- Set cmdheight without modifying the internal stored cmdheight
---- while still allowing any other OptionSet autocmds to run
----@param value integer
-local function set_cmdheight(value)
-  if vim.o.cmdheight == value then
-    return
-  end
-
-  s.setting_cmdheight = true
-  local ok, err = xpcall(function()
-    vim.o.cmdheight = value
-  end, debug.traceback)
-  s.setting_cmdheight = false
-
-  if not ok then
-    error(err)
-  end
-end
-
 ---Set the completion display height and corresponding command-line height.
 ---@param height integer Completion display height.
 ---@return nil
@@ -93,19 +47,10 @@ local function set_height(height)
     return
   end
 
-  if height == 0 then
-    vim.api.nvim_win_set_config(s.win, {
-      hide = true,
-      height = 1,
-    })
-  elseif vim.api.nvim_win_get_height(s.win) ~= height then
-    vim.api.nvim_win_set_config(s.win, {
-      hide = false,
-      height = height,
-    })
-  end
-
-  set_cmdheight(height + 1)
+  s.cmdheight = height + 1
+  util.set_win_height(s.win, height)
+  util.set_cmdheight(s.cmdheight)
+  util.resize_windows_for_cmdheight(state.win_sizes, height - util.get_ext().cmdheight)
 end
 
 ---Add command descriptions to completion items.
@@ -303,18 +248,6 @@ function M.enable()
     return
   end
 
-  if not cmdheight_autocmd_created then
-    vim.api.nvim_create_autocmd("OptionSet", {
-      group = state.augroup,
-      pattern = { "cmdheight" },
-      callback = function(_)
-        if not s.setting_cmdheight then
-          s.user_cmdheight = vim.v.option_new
-        end
-      end,
-    })
-  end
-
   if s.is_active then
     return
   end
@@ -326,6 +259,9 @@ function M.enable()
   end
 
   s.is_active = true
+
+  state.win_sizes = util.get_window_sizes()
+  state.win_views = util.get_win_views()
 
   vim.ui_attach(state.ns, {
     ext_popupmenu = true,
@@ -369,19 +305,50 @@ function M.disable()
 
   local _, _ = pcall(vim.keymap.del, "c", "<C-y>")
 
-  destroy_window()
+  util.set_cmdheight()
 
-  reset_state()
+  -- Cleanup window and buf
+  if valid_win() then
+    local _, _ = pcall(vim.api.nvim_win_close, s.win, true)
+  end
+  if valid_buf() then
+    local _, _ = pcall(vim.api.nvim_buf_delete, s.buf, { force = true })
+  end
 
-  vim.schedule(function()
-    set_cmdheight(s.user_cmdheight)
-  end)
+  -- Reset state
+  s.win = nil
+  s.buf = nil
+  s.mark = nil
+  s.items = {}
+  s.selected = -1
+  s.mark = nil
+  s.cmdheight = 0
 end
 
 ---Check whether the custom completion popup is is active.
 ---@return boolean
 function M.is_active()
   return s.is_active
+end
+
+--- Set the cmdheight to internally stored value
+function M.update_cmdheight()
+  if not s.is_active then
+    return
+  end
+
+  util.set_cmdheight(s.cmdheight > 0 and s.cmdheight or 1)
+end
+
+--- Cleanup old state and restore windows
+function M.cleanup()
+  if state.win_sizes then
+    util.restore_window_sizes(state.win_sizes)
+  end
+  if state.win_views then
+    util.restore_win_views(state.win_views)
+  end
+  state.cleanup()
 end
 
 return M

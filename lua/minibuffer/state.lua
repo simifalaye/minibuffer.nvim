@@ -33,12 +33,8 @@ M.ns = vim.api.nvim_create_namespace("minibuffer")
 
 --- Wipe state
 function M.cleanup()
-  if not M.session then
-    return
-  end
-
   M.active_window = nil
-  if M.session.resumable then
+  if M.session and M.session.resumable then
     M.prev_session = M.session
   end
   M.session = nil
