@@ -48,6 +48,11 @@ local function set_height(height)
     return
   end
 
+  if config.cmd.autotrigger and not config.cmd.dynamic_height then
+    local prev_display_height = vim.api.nvim_win_get_height(s.win)
+    height = math.max(prev_display_height, height)
+  end
+
   s.cmdheight = height + 1
   util.set_win_height(s.win, height)
   util.set_cmdheight(state.win_states, config.dynamic_window_resize, s.cmdheight)
@@ -192,9 +197,6 @@ local function on_event(event, ...)
       { line_hl_group = "MinibufferSelection" }
     )
   elseif event == "popupmenu_hide" then
-    if config.cmd.autotrigger then
-      return
-    end
     s.items = {}
     s.selected = -1
     render()
