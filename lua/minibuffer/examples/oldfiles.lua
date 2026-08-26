@@ -57,6 +57,8 @@ end
 
 ---@param opts minibuffer.examples.OldfilesOpts
 return function(opts)
+  require("minibuffer.internal.guard").check()
+
   opts = vim.tbl_deep_extend("force", { cwd = nil }, opts or {})
 
   local oldfiles = gather_oldfiles(opts.cwd)

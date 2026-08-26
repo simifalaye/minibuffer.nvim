@@ -3,6 +3,8 @@
 ---@param opts vim.ui.select.Opts Options
 ---@param on_choice fun(item: T|nil, idx: integer|nil)
 return function(items, opts, on_choice)
+  require("minibuffer.internal.guard").check()
+
   local prompt = opts.prompt or "Select: "
   local format_item = opts.format_item or function(item)
     return item

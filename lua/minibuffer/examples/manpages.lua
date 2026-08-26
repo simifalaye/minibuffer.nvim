@@ -104,6 +104,8 @@ local function filter_fn(ctx)
 end
 
 return function()
+  require("minibuffer.internal.guard").check()
+
   require("minibuffer").select({
     resumable = true,
     prompt = "Manpages: ",

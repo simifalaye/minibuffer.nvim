@@ -344,14 +344,10 @@ function M.set_cmdheight(states, resize_windows, height)
   end
 end
 
----@class minibuffer.core.WriteLinesOpts
----@field start_line integer|nil
----@field replace_existing boolean|nil
-
 ---@param buf integer
 ---@param ns integer
----@param lines_data minibuffer.core.HighlightLine[]
----@param opts minibuffer.core.WriteLinesOpts|nil
+---@param lines_data minibuffer.util.HighlightLine[]
+---@param opts minibuffer.util.WriteLinesOpts|nil
 function M.write_highlighted_lines(buf, ns, lines_data, opts)
   opts = opts or {}
   local start_line = opts.start_line or 0

@@ -70,6 +70,8 @@ local function filter_fn(ctx)
 end
 
 return function()
+  require("minibuffer.internal.guard").check()
+
   local marks = gather_marks()
   require("minibuffer").select({
     resumable = true,

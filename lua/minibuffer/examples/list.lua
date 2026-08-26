@@ -71,6 +71,8 @@ end
 
 ---@param opts? minibuffer.examples.ListOpts
 return function(opts)
+  require("minibuffer.internal.guard").check()
+
   opts = vim.tbl_deep_extend("force", { type = "quickfix" }, opts or {})
   local items = gather_items(opts.type)
 

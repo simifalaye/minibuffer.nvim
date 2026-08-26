@@ -2,8 +2,8 @@
 ---@param force boolean|nil
 ---@return boolean started
 local function start_session(session, force)
-  local state = require("minibuffer.state")
-  local util = require("minibuffer.util")
+  local state = require("minibuffer.internal.state")
+  local util = require("minibuffer.internal.util")
   if not state.initialized then
     error("Must call `initialize()` first")
   end
@@ -54,13 +54,13 @@ local M = {}
 
 ---Initialize plugin
 function M.initialize()
-  local state = require("minibuffer.state")
+  local state = require("minibuffer.internal.state")
   if state.initialized then
     return
   end
 
   local config = require("minibuffer.config")
-  local cmd = require("minibuffer.cmd")
+  local cmd = require("minibuffer.internal.cmd")
 
   -- Setup highlights
   local function setup_hl()
@@ -118,14 +118,13 @@ function M.initialize()
   vim.api.nvim_create_autocmd("CmdlineChanged", {
     group = state.augroup,
     callback = function()
-      local conf = require("minibuffer.config").get()
-      if conf.cmd.autotrigger and vim.fn.mode() == "c" then
+      if config.cmd.autotrigger and vim.fn.mode() == "c" then
         vim.fn.wildtrigger()
       end
     end,
   })
 
-  if config.get().cmd.autotrigger then
+  if config.cmd.autotrigger then
     vim.o.wildmode = "noselect,full"
   end
 
@@ -135,7 +134,7 @@ function M.initialize()
   cmdline.cmdline_show = function(content, pos, firstc, prompt, indent, level, hl_id)
     original_show(content, pos, firstc, prompt, indent, level, hl_id)
     -- Set cmdheight after ui2s layout operations to ensure we override it
-    if config.get().cmd.enabled then
+    if config.cmd.enabled then
       cmd.update_cmdheight()
     end
   end
@@ -232,7 +231,7 @@ end
 ---@param force boolean|nil
 ---@return boolean started
 function M.resume(force)
-  local state = require("minibuffer.state")
+  local state = require("minibuffer.internal.state")
   if not state.prev_session then
     vim.notify("[minibuffer] No session available to resume.", vim.log.levels.WARN)
     return false
@@ -243,21 +242,21 @@ end
 ---Return whether a session is currently active
 ---@return boolean
 function M.is_active()
-  local state = require("minibuffer.state")
+  local state = require("minibuffer.internal.state")
   return state.session ~= nil
 end
 
 ---Return the currently active session object (or nil)
 ---@return minibuffer.core.Session|nil
 function M.get_active_session()
-  local state = require("minibuffer.state")
+  local state = require("minibuffer.internal.state")
   return state.session
 end
 
 ---Return the window that was active when the session was started (or nil)
 ---@return integer|nil
 function M.get_active_window()
-  local state = require("minibuffer.state")
+  local state = require("minibuffer.internal.state")
   return state.active_window
 end
 

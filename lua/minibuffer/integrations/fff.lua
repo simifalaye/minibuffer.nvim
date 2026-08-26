@@ -27,6 +27,8 @@ local M = {}
 --- Run fff file search
 ---@param opts minibuffer.integrations.FFFindOpts
 function M.file_search(opts)
+  require("minibuffer.internal.guard").check()
+
   local current_file
   local win = vim.api.nvim_get_current_win()
   if win and vim.api.nvim_win_is_valid(win) then
@@ -142,6 +144,8 @@ end
 --- Run fff grep
 ---@param opts minibuffer.integrations.FFFGrepOpts
 function M.content_search(opts)
+  require("minibuffer.internal.guard").check()
+
   opts = vim.tbl_deep_extend("force", {
     cwd = vim.fn.getcwd(),
     mode = "regex",

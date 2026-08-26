@@ -17,6 +17,8 @@ end
 
 ---@param opts? minibuffer.examples.GitFilesOpts
 return function(opts)
+  require("minibuffer.internal.guard").check()
+
   opts = vim.tbl_deep_extend("force", { cwd = nil }, opts or {})
   local cwd = vim.fn.fnamemodify(opts.cwd or vim.fn.getcwd(), ":p")
   local show_untracked = opts.show_untracked == true

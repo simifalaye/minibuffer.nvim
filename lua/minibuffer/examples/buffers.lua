@@ -91,6 +91,8 @@ local function get_replacement_buf(current)
 end
 
 return function()
+  require("minibuffer.internal.guard").check()
+
   local active_win
   local buffers = gather_buffers()
   local minibuffer = require("minibuffer")

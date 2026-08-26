@@ -1,23 +1,23 @@
 local config = require("minibuffer.config")
-local state = require("minibuffer.state")
-local util = require("minibuffer.util")
+local state = require("minibuffer.internal.state")
+local util = require("minibuffer.internal.util")
 
 local M = {}
 
----@alias minibuffer.cmd.PopupItem any[]
----@alias minibuffer.cmd.PopupItems minibuffer.cmd.PopupItem[]
+---@alias minibuffer.internal.cmd.PopupItem any[]
+---@alias minibuffer.internal.cmd.PopupItems minibuffer.internal.cmd.PopupItem[]
 
----@class minibuffer.cmd.State
+---@class minibuffer.internal.cmd.State
 ---@field is_active boolean
 ---@field buf integer? Completion display buffer.
 ---@field win integer? Completion display window.
 ---@field mark integer? Selection extmark.
----@field items minibuffer.cmd.PopupItems
+---@field items minibuffer.internal.cmd.PopupItems
 ---@field selected integer Zero-based selected completion index, or -1 when nothing is selected.
 ---@field commands table<string, vim.api.keyset.command_info> Command info
 ---@field cmdheight integer The value that cmdheight should currently be set to
 
----@type minibuffer.cmd.State
+---@type minibuffer.internal.cmd.State
 local s = {
   -- internal
   is_active = false,
@@ -50,19 +50,15 @@ local function set_height(height)
 
   s.cmdheight = height + 1
   util.set_win_height(s.win, height)
-  util.set_cmdheight(
-    state.win_states,
-    config.get().dynamic_window_resize,
-    s.cmdheight
-  )
+  util.set_cmdheight(state.win_states, config.dynamic_window_resize, s.cmdheight)
 end
 
 ---Add command descriptions to completion items.
 ---
 ---Only command-name completion is enriched. If the completion already
 ---contains an `info` field, it is left unchanged.
----@param items minibuffer.cmd.PopupItems
----@return minibuffer.cmd.PopupItems
+---@param items minibuffer.internal.cmd.PopupItems
+---@return minibuffer.internal.cmd.PopupItems
 local function enrich_items(items)
   if vim.fn.getcmdtype() ~= ":" then
     return items
@@ -90,7 +86,7 @@ local function enrich_items(items)
 end
 
 ---Format a single completion item for display.
----@param item minibuffer.cmd.PopupItem
+---@param item minibuffer.internal.cmd.PopupItem
 ---@return table[] Highlighted line data.
 local function format_item(item)
   local word = item[1] or ""
@@ -134,9 +130,8 @@ local function render()
     return
   end
 
-  local conf = require("minibuffer.config").get()
-  local max_height = conf.cmd.max_height or 15
-  local dynamic_height = conf.cmd.dynamic_height == true
+  local max_height = config.cmd.max_height or 15
+  local dynamic_height = config.cmd.dynamic_height == true
   local height = math.min(max_height, count)
   if not dynamic_height then
     height = math.max(vim.api.nvim_win_get_height(s.win), height)
@@ -197,8 +192,7 @@ local function on_event(event, ...)
       { line_hl_group = "MinibufferSelection" }
     )
   elseif event == "popupmenu_hide" then
-    local conf = require("minibuffer.config").get()
-    if conf.cmd.autotrigger then
+    if config.cmd.autotrigger then
       return
     end
     s.items = {}
@@ -247,8 +241,7 @@ end
 ---Enable the custom command-line completion popup.
 ---@return nil
 function M.enable()
-  local conf = require("minibuffer.config").get()
-  if not conf or not conf.cmd or not conf.cmd.enabled then
+  if not config.cmd.enabled then
     return
   end
 
@@ -270,7 +263,7 @@ function M.enable()
     ext_popupmenu = true,
   }, on_event)
 
-  if conf.cmd.autotrigger then
+  if config.cmd.autotrigger then
     -- Accept the current completion and immediately trigger the next one.
     vim.keymap.set("c", "<C-y>", function()
       if vim.fn.wildmenumode() == 0 then
@@ -308,7 +301,7 @@ function M.disable()
 
   local _, _ = pcall(vim.keymap.del, "c", "<C-y>")
 
-  util.set_cmdheight(state.win_states, config.get().dynamic_window_resize)
+  util.set_cmdheight(state.win_states, config.dynamic_window_resize)
 
   -- Cleanup window and buf
   if valid_win() then
@@ -342,7 +335,7 @@ function M.update_cmdheight()
 
   util.set_cmdheight(
     state.win_states,
-    config.get().dynamic_window_resize,
+    config.dynamic_window_resize,
     s.cmdheight > 0 and s.cmdheight or 1
   )
 end

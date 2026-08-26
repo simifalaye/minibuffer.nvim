@@ -1,6 +1,6 @@
 local config = require("minibuffer.config")
-local state = require("minibuffer.state")
-local util = require("minibuffer.util")
+local state = require("minibuffer.internal.state")
+local util = require("minibuffer.internal.util")
 
 ---@param conf { buf:integer|nil, win:integer|nil }
 local function win_state_is_valid(conf)
@@ -237,11 +237,7 @@ function InputSession:render()
   -- Set heights
   util.set_win_height(self._display.win, display_height)
   util.set_win_height(self._entry.win, display_height + 2)
-  util.set_cmdheight(
-    state.win_states,
-    config.get().dynamic_window_resize,
-    display_height + 2
-  )
+  util.set_cmdheight(state.win_states, config.dynamic_window_resize, display_height + 2)
 
   -- Build display output
   local start_idx = self._scroll_offset + 1
@@ -386,7 +382,7 @@ function InputSession:close(done)
     cleaned_up = true
     vim.cmd("stopinsert")
 
-    util.set_cmdheight(state.win_states, config.get().dynamic_window_resize)
+    util.set_cmdheight(state.win_states, config.dynamic_window_resize)
 
     if self._display.win and vim.api.nvim_win_is_valid(self._display.win) then
       pcall(vim.api.nvim_win_close, self._display.win, true)

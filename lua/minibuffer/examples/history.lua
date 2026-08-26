@@ -49,6 +49,8 @@ end
 
 ---@param opts? minibuffer.examples.HistoryOpts
 return function(opts)
+  require("minibuffer.internal.guard").check()
+
   opts = vim.tbl_deep_extend("force", { type = nil }, opts or {})
   local items = gather_history(opts.type)
 

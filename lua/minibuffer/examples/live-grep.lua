@@ -3,7 +3,7 @@ if vim.fn.executable("rg") == 0 then
   return function() end
 end
 
-local util = require("minibuffer.util")
+local util = require("minibuffer.internal.util")
 
 local debounce = util.make_debounced(100)
 local generation = 0
@@ -95,6 +95,8 @@ end
 
 ---@param opts minibuffer.examples.LiveGrepOpts
 return function(opts)
+  require("minibuffer.internal.guard").check()
+
   ---@type minibuffer.examples.LiveGrepOpts
   local default_opts = {
     rg_opts = {

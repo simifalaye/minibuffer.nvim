@@ -1,6 +1,8 @@
 ---@param opts? vim.ui.input.Opts Additional options. See |input()|
 ---@param on_confirm fun(input?: string)
 return function(opts, on_confirm)
+  require("minibuffer.internal.guard").check()
+
   opts = opts or {}
   local prompt = opts.prompt or "Enter: "
   local default = opts.default or ""

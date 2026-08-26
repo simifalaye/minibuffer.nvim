@@ -84,6 +84,8 @@ end
 
 ---@param opts? minibuffer.examples.DiagnosticsOpts
 return function(opts)
+  require("minibuffer.internal.guard").check()
+
   opts = vim.tbl_deep_extend("force", { scope = "workspace" }, opts or {})
   local diagnostics = gather_diagnostics(opts.scope)
 
