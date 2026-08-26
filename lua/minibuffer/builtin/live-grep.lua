@@ -89,15 +89,15 @@ local function run_grep(opts, input, cb)
   end)
 end
 
----@class minibuffer.examples.LiveGrepOpts
+---@class minibuffer.builtin.LiveGrepOpts
 ---@field rg_opts string[]|nil
 ---@field cwd string|nil
 
----@param opts minibuffer.examples.LiveGrepOpts
+---@param opts minibuffer.builtin.LiveGrepOpts
 return function(opts)
   require("minibuffer.internal.guard").check()
 
-  ---@type minibuffer.examples.LiveGrepOpts
+  ---@type minibuffer.builtin.LiveGrepOpts
   local default_opts = {
     rg_opts = {
       "rg",

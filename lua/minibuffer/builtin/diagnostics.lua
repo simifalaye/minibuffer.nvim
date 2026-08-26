@@ -79,10 +79,10 @@ local function filter_fn(ctx)
   return results
 end
 
----@class minibuffer.examples.DiagnosticsOpts
+---@class minibuffer.builtin.DiagnosticsOpts
 ---@field scope? "buffer"|"workspace"
 
----@param opts? minibuffer.examples.DiagnosticsOpts
+---@param opts? minibuffer.builtin.DiagnosticsOpts
 return function(opts)
   require("minibuffer.internal.guard").check()
 

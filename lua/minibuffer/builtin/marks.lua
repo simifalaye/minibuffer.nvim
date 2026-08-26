@@ -1,4 +1,4 @@
----@class minibuffer.examples.Mark
+---@class minibuffer.builtin.Mark
 ---@field mark string
 ---@field file string
 ---@field lnum integer

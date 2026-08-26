@@ -11,11 +11,11 @@ local function filter_fn(ctx)
   return vim.fn.matchfuzzy(ctx.items, ctx.input)
 end
 
----@class minibuffer.examples.GitFilesOpts
+---@class minibuffer.builtin.GitFilesOpts
 ---@field cwd? string
 ---@field show_untracked? boolean
 
----@param opts? minibuffer.examples.GitFilesOpts
+---@param opts? minibuffer.builtin.GitFilesOpts
 return function(opts)
   require("minibuffer.internal.guard").check()
 

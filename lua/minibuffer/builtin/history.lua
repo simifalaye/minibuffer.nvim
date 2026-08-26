@@ -44,10 +44,10 @@ local function filter_fn(ctx)
   return results
 end
 
----@class minibuffer.examples.HistoryOpts
+---@class minibuffer.builtin.HistoryOpts
 ---@field type? "cmd"|"search"
 
----@param opts? minibuffer.examples.HistoryOpts
+---@param opts? minibuffer.builtin.HistoryOpts
 return function(opts)
   require("minibuffer.internal.guard").check()
 

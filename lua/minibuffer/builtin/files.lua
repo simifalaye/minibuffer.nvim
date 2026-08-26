@@ -62,15 +62,15 @@ local function load_files(opts, cb)
   end)
 end
 
----@class minibuffer.examples.FilesGrepOpts
+---@class minibuffer.builtin.FilesGrepOpts
 ---@field rg_opts string[]|nil
 ---@field cwd string|nil
 
----@param opts minibuffer.examples.FilesGrepOpts
+---@param opts minibuffer.builtin.FilesGrepOpts
 return function(opts)
   require("minibuffer.internal.guard").check()
 
-  ---@type minibuffer.examples.FilesGrepOpts
+  ---@type minibuffer.builtin.FilesGrepOpts
   local default_opts = {
     rg_opts = {
       "rg",

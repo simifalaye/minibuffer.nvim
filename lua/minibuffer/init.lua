@@ -59,6 +59,9 @@ function M.initialize()
     return
   end
 
+  -- TODO: Remove later on
+  require("minibuffer.internal.compat").initialize()
+
   local config = require("minibuffer.config")
   local cmd = require("minibuffer.internal.cmd")
 

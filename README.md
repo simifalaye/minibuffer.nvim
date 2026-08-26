@@ -116,73 +116,71 @@ vim.g.minibuffer = {
 }
 ```
 
-# Examples
-
-I have written a few usable examples for this interface for demonstration.
+# Builtin
 
 ## Custom Pickers
 
 ```lua
 vim.keymap.set("n", "<leader>;", function()
-  require("minibuffer.examples.history")({ type = "cmd" })
+  require("minibuffer.builtin.history")({ type = "cmd" })
 end, { desc = "Find command history" })
 vim.keymap.set("n", "<leader>?", function()
-  require("minibuffer.examples.history")({ type = "search" })
+  require("minibuffer.builtin.history")({ type = "search" })
 end, { desc = "Find command history" })
 vim.keymap.set("n", "<leader>'", function()
-  require("minibuffer.examples.marks")()
+  require("minibuffer.builtin.marks")()
 end, { desc = "Find mark" })
 vim.keymap.set(
   "n",
   "<leader>/",
-  require("minibuffer.examples.live-grep"),
+  require("minibuffer.builtin.live-grep"),
   { desc = "Live grep" }
 )
 
 vim.keymap.set(
   "n",
   "<leader>fb",
-  require("minibuffer.examples.buffers"),
+  require("minibuffer.builtin.buffers"),
   { desc = "Find buffers" }
 )
 vim.keymap.set(
   "n",
   "<leader>ff",
-  require("minibuffer.examples.files"),
+  require("minibuffer.builtin.files"),
   { desc = "Find files" }
 )
 vim.keymap.set("n", "<leader>fd", function()
-  require("minibuffer.examples.diagnostics")({ scope = "buffer" })
+  require("minibuffer.builtin.diagnostics")({ scope = "buffer" })
 end, { desc = "Find diagnostics" })
 vim.keymap.set("n", "<leader>fD", function()
-  require("minibuffer.examples.diagnostics")({ scope = "workspace" })
+  require("minibuffer.builtin.diagnostics")({ scope = "workspace" })
 end, { desc = "Find diagnostics (workspace)" })
 vim.keymap.set(
   "n",
   "<leader>fg",
-  require("minibuffer.examples.git-files"),
+  require("minibuffer.builtin.git-files"),
   { desc = "Find gitfiles" }
 )
 vim.keymap.set("n", "<leader>fl", function()
-  require("minibuffer.examples.list")({ type = "loclist" })
+  require("minibuffer.builtin.list")({ type = "loclist" })
 end, { desc = "Find in loclist" })
 vim.keymap.set(
   "n",
   "<leader>fm",
-  require("minibuffer.examples.manpages"),
+  require("minibuffer.builtin.manpages"),
   { desc = "Find manpages" }
 )
 vim.keymap.set("n", "<leader>fo", function()
-  require("minibuffer.examples.oldfiles")({ cwd = vim.fn.getcwd() })
+  require("minibuffer.builtin.oldfiles")({ cwd = vim.fn.getcwd() })
 end, { desc = "Find oldfiles (cwd)" })
 vim.keymap.set(
   "n",
   "<leader>fO",
-  require("minibuffer.examples.oldfiles"),
+  require("minibuffer.builtin.oldfiles"),
   { desc = "Find oldfiles (all)" }
 )
 vim.keymap.set("n", "<leader>fq", function()
-  require("minibuffer.examples.list")({ type = "quickfix" })
+  require("minibuffer.builtin.list")({ type = "quickfix" })
 end, { desc = "Find in quickfix" })
 ```
 
@@ -369,4 +367,4 @@ As such, please refer to the following files/directories that contain the type d
 * `lua/minibuffer/types.lua`
 - `lua/minibuffer/sessions/*`
 
-For examples on how the options can be used, see `lua/minibuffer/examples/*`
+For examples on how the options can be used, see `lua/minibuffer/builtin/*`

@@ -66,10 +66,10 @@ local function filter_fn(ctx)
   return results
 end
 
----@class minibuffer.examples.ListOpts
+---@class minibuffer.builtin.ListOpts
 ---@field type? "quickfix"|"loclist"
 
----@param opts? minibuffer.examples.ListOpts
+---@param opts? minibuffer.builtin.ListOpts
 return function(opts)
   require("minibuffer.internal.guard").check()
 

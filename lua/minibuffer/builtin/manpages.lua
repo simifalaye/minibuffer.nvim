@@ -1,4 +1,4 @@
----@class minibuffer.examples.Manpage
+---@class minibuffer.builtin.Manpage
 ---@field name string
 ---@field section string
 ---@field description string

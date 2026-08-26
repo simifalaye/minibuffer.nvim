@@ -52,10 +52,10 @@ local function filter_fn(ctx)
   return results
 end
 
----@class minibuffer.examples.OldfilesOpts
+---@class minibuffer.builtin.OldfilesOpts
 ---@field cwd string|nil
 
----@param opts minibuffer.examples.OldfilesOpts
+---@param opts minibuffer.builtin.OldfilesOpts
 return function(opts)
   require("minibuffer.internal.guard").check()
 
