@@ -271,7 +271,7 @@ function M.enable()
   }, on_event)
 
   if conf.cmd.autotrigger then
-    ---Accept the current completion and immediately trigger the next one.
+    -- Accept the current completion and immediately trigger the next one.
     vim.keymap.set("c", "<C-y>", function()
       if vim.fn.wildmenumode() == 0 then
         return "<C-y>"

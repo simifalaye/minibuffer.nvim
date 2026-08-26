@@ -237,7 +237,11 @@ function InputSession:render()
   -- Set heights
   util.set_win_height(self._display.win, display_height)
   util.set_win_height(self._entry.win, display_height + 2)
-  util.set_cmdheight(state.win_states, config.get().dynamic_window_resize, display_height + 2)
+  util.set_cmdheight(
+    state.win_states,
+    config.get().dynamic_window_resize,
+    display_height + 2
+  )
 
   -- Build display output
   local start_idx = self._scroll_offset + 1
@@ -321,18 +325,6 @@ function InputSession:post_start()
   end
   state.active_window = util.focus_win(self._entry.win)
 
-  vim.api.nvim_buf_attach(self._entry.buf, false, {
-    on_lines = function(_, _, _, _, _, _, _)
-      if self._closed then
-        return true
-      end
-      local input = vim.fn.prompt_getinput(self._entry.buf)
-      if input ~= self._input then
-        self._input = input
-        self:refresh_suggestions()
-      end
-    end,
-  })
   vim.api.nvim_win_call(self._entry.win, function()
     vim.cmd("startinsert")
   end)
@@ -340,6 +332,21 @@ function InputSession:post_start()
     pcall(vim.api.nvim_feedkeys, self._input, "t", false)
   end
   vim.api.nvim_set_option_value("modified", false, { buf = self._entry.buf })
+
+  vim.schedule(function()
+    vim.api.nvim_buf_attach(self._entry.buf, false, {
+      on_lines = function(_, _, _, _, _, _, _)
+        if self._closed then
+          return true
+        end
+        local input = vim.fn.prompt_getinput(self._entry.buf)
+        if input ~= self._input then
+          self._input = input
+          self:refresh_suggestions()
+        end
+      end,
+    })
+  end)
 
   if #self._items == 0 then
     self:refresh_suggestions()
