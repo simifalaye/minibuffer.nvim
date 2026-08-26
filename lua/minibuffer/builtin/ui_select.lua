@@ -27,7 +27,7 @@ return function(items, opts, on_choice)
       end
       return out
     end,
-    on_select = function(selection)
+    on_accept = function(selection)
       if #selection < 1 then
         return
       end

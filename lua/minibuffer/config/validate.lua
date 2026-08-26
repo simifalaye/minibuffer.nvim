@@ -12,7 +12,7 @@ local function validate_path(path, fields)
   return false, ("%s.%s"):format(path, err)
 end
 
----@param config minibuffer.internal_config
+---@param config minibuffer.Config
 ---@return boolean is_valid
 ---@return string|nil error_message
 function M.validate(config)

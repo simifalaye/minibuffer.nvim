@@ -1,14 +1,14 @@
----@class minibuffer.internal_config.cmd
+---@class minibuffer.cmd.Config
 ---@field enabled boolean
 ---@field autotrigger boolean
 ---@field dynamic_height boolean
 ---@field max_height integer
 
----@class minibuffer.internal_config
+---@class minibuffer.Config
 ---@field dynamic_window_resize boolean
----@field cmd minibuffer.internal_config.cmd
+---@field cmd minibuffer.cmd.Config
 
----@type minibuffer.internal_config
+---@type minibuffer.Config
 local default_config = {
   dynamic_window_resize = true,
   cmd = {
@@ -19,22 +19,11 @@ local default_config = {
   },
 }
 
----@param value minibuffer.config_source
----@return minibuffer.config
-local function get_user_config(value)
-  if type(value) == "function" then
-    local config = value()
-    if config == nil then
-      return {}
-    end
-    return config
-  end
-  return value or {}
-end
+local user_config = type(vim.g.minibuffer) == "function" and vim.g.minibuffer()
+  or vim.g.minibuffer
+  or {}
 
-local user_config = get_user_config(vim.g.minibuffer)
-
----@type minibuffer.internal_config
+---@type minibuffer.Config
 local config = vim.tbl_deep_extend("force", default_config, user_config)
 
 local valid, err = require("minibuffer.config.validate").validate(config)

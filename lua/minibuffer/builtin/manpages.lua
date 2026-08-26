@@ -133,7 +133,7 @@ return function()
         end)
       end)
     end,
-    on_select = function(selection)
+    on_accept = function(selection)
       local item = selection[1].item
       if not item then
         return

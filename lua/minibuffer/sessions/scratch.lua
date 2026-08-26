@@ -1,3 +1,8 @@
+---@mod minibuffer.sessions.scratch ScratchSession
+---@brief [[
+---Start a scratch minibuffer session which just holds a window inside of the minibuffer area
+---@brief ]]
+
 local config = require("minibuffer.config")
 local state = require("minibuffer.internal.state")
 local util = require("minibuffer.internal.util")
@@ -12,37 +17,47 @@ ScratchSession.__index = ScratchSession
 ScratchSession = ScratchSession
 
 ---@class minibuffer.core.ScratchSessionOpts
+---The buffer for the window to display
 ---@field buf integer
+---The window config to use
 ---@field win_config vim.api.keyset.win_config
+---Whether to enter the window upon creation
 ---@field enter boolean
 
+--- Create new ScratchSession
 ---@param opts minibuffer.core.ScratchSessionOpts|nil
 ---@return minibuffer.core.ScratchSession
 function ScratchSession.new(opts)
   opts = opts or {}
   local self = setmetatable({
-    resumable = false,
     buf = opts.buf,
     win_config = opts.win_config,
     enter = opts.enter,
 
-    _closed = false,
+    _closed = true,
     _win = -1,
   }, ScratchSession)
+
+  function self:resumable()
+    return false
+  end
 
   return self
 end
 
+--- Get the type of a session
 ---@return minibuffer.core.SessionType
 function ScratchSession:type()
   return "scratch"
 end
 
+--- Check if a session is overridable
 ---@return boolean
 function ScratchSession:overridable()
   return true
 end
 
+--- Session setup
 function ScratchSession:pre_start()
   local cmd_win = util.get_cmd_win()
   if not cmd_win then
@@ -55,6 +70,7 @@ function ScratchSession:pre_start()
   util.wipe_cmd_buffer()
 end
 
+--- Render session to the screen
 function ScratchSession:render()
   if self._closed then
     return
@@ -115,8 +131,10 @@ function ScratchSession:render()
   vim.api.nvim__redraw({ flush = true, cursor = true })
 end
 
+--- After first render
 function ScratchSession:post_start() end
 
+--- Cancel session
 function ScratchSession:cancel()
   if self._closed then
     return
@@ -125,6 +143,8 @@ function ScratchSession:cancel()
   self:close()
 end
 
+--- Close session
+---@param done fun()? callback when close is completed
 function ScratchSession:close(done)
   if self._closed then
     return
@@ -157,6 +177,7 @@ function ScratchSession:close(done)
   end
 end
 
+--- Set the window config after it has already been created
 ---@param c vim.api.keyset.win_config
 function ScratchSession:set_win_config(c)
   if self._closed then
@@ -182,6 +203,8 @@ function ScratchSession:set_win_config(c)
   self:render()
 end
 
+--- Return the win id
+---@return integer
 function ScratchSession:get_win()
   return self._win
 end

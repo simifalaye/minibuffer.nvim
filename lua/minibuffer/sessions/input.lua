@@ -1,3 +1,8 @@
+---@mod minibuffer.sessions.input InputSession
+---@brief [[
+---Start an input minibuffer session to collect interactive input from a user
+---@brief ]]
+
 local config = require("minibuffer.config")
 local state = require("minibuffer.internal.state")
 local util = require("minibuffer.internal.util")
@@ -11,9 +16,13 @@ local function win_state_is_valid(conf)
 end
 
 ---@class minibuffer.core.InputContext
+---The current list of suggestions
 ---@field items any[]
+---The current user input string
 ---@field input string
+---The currently selected index
 ---@field current_index integer 1-based; 0 means no selection
+---Whether the suggestions are still loading
 ---@field loading boolean
 
 ---@alias minibuffer.core.InputFetchFn fun(input:string, cb:fun(suggestions:any[]|nil, err:any|nil))
@@ -26,7 +35,6 @@ end
 ---@field prompt string
 ---@field max_height integer
 ---@field dynamic_height boolean
----@field enable_ts boolean
 ---@field fetch_fn minibuffer.core.InputFetchFn|nil
 ---@field format_fn minibuffer.core.FormatFn
 ---@field footer_fn minibuffer.core.InputFooterFn|nil
@@ -50,32 +58,44 @@ InputSession.__index = InputSession
 InputSession = InputSession
 
 ---@class minibuffer.core.InputSessionOpts
+---Whether this specific session is reusable
 ---@field resumable boolean|nil
+---The prompt string to display to the user
 ---@field prompt string|nil
+---The initial input text
 ---@field initial_text string|nil
+---The max height the minibuffer can grow to
 ---@field max_height integer|nil
+---Whether the minibuffer should ever shrink as the items decrease
 ---@field dynamic_height boolean|nil
----@field enable_ts boolean|nil
+---The function used to fetch suggestions based on the user input
 ---@field fetch_fn minibuffer.core.InputFetchFn
+---The function used to format a suggestion item to be displayed
 ---@field format_fn minibuffer.core.FormatFn
+---The function used to generate the footer text in the window
 ---@field footer_fn minibuffer.core.InputFooterFn|nil
+---The callback called when the session is started
 ---@field on_start minibuffer.core.InputStartCallback|nil
+---The callback called when the user accepts a suggestion
 ---@field on_accept minibuffer.core.InputAcceptCallback|nil
+---The callback called when the user submits the input
 ---@field on_submit minibuffer.core.InputSubmitCallback
+---The callback called when the session is canceled
 ---@field on_cancel minibuffer.core.CancelCallback|nil
+---The callback called when the session is closed
 ---@field on_close minibuffer.core.CloseCallback|nil
+---The callback called when the session changes and is re-rendered
 ---@field on_change minibuffer.core.ChangeCallback|nil
 
+--- Create new InputSession
 ---@param opts minibuffer.core.InputSessionOpts|nil
 ---@return minibuffer.core.InputSession
 function InputSession.new(opts)
   opts = opts or {}
   local self = setmetatable({
-    resumable = opts.resumable == true,
     prompt = opts.prompt or "Enter: ",
     max_height = opts.max_height or 15,
     dynamic_height = opts.dynamic_height == true,
-    enable_ts = opts.enable_ts == true,
     fetch_fn = opts.fetch_fn,
     format_fn = opts.format_fn,
     footer_fn = opts.footer_fn or function(ctx)
@@ -91,7 +111,7 @@ function InputSession.new(opts)
     on_close = opts.on_close,
     on_change = opts.on_change,
 
-    _closed = false,
+    _closed = true,
     _entry = { buf = nil, win = nil },
     _display = { buf = nil, win = nil },
     _input = opts.initial_text or "",
@@ -104,19 +124,27 @@ function InputSession.new(opts)
   assert(self.fetch_fn ~= nil, "Must provide fetch_fn")
   assert(self.format_fn ~= nil, "Must provide format_fn")
 
+  local resumable = opts.resumable == true
+  function self:resumable()
+    return resumable
+  end
+
   return self
 end
 
+--- Get the type of a session
 ---@return minibuffer.core.SessionType
 function InputSession:type()
   return "input"
 end
 
+--- Check if a session is overridable
 ---@return boolean
 function InputSession:overridable()
   return true
 end
 
+--- Session setup
 function InputSession:pre_start()
   local win = util.get_cmd_win()
   if not win then
@@ -185,13 +213,10 @@ function InputSession:pre_start()
     border = "none",
   })
   vim.wo[self._entry.win].wrap = false
-  if self.enable_ts then
-    util.enable_buffer_ts(self._entry.buf, self.enable_ts)
-  else
-    vim.wo[self._entry.win].winhighlight = "Normal:MinibufferPrompt"
-  end
+  vim.wo[self._entry.win].winhighlight = "Normal:MinibufferPrompt"
 end
 
+--- Render session to the screen
 function InputSession:render()
   if self._closed then
     return
@@ -271,6 +296,7 @@ function InputSession:render()
   vim.api.nvim__redraw({ flush = true, cursor = true })
 end
 
+--- After first render
 function InputSession:post_start()
   if self._closed then
     return
@@ -349,6 +375,7 @@ function InputSession:post_start()
   end
 end
 
+--- Cancel session
 function InputSession:cancel()
   if self._closed then
     return
@@ -364,6 +391,8 @@ function InputSession:cancel()
   end)
 end
 
+--- Close session
+---@param done fun()? callback when close is completed
 function InputSession:close(done)
   if self._closed then
     return
@@ -434,6 +463,7 @@ function InputSession:close(done)
   end
 end
 
+--- Get the session context
 function InputSession:get_ctx()
   return {
     items = self._items,
@@ -443,6 +473,7 @@ function InputSession:get_ctx()
   }
 end
 
+--- Refresh suggestions based on the user input
 function InputSession:refresh_suggestions()
   if self._closed then
     return
@@ -490,6 +521,7 @@ function InputSession:refresh_suggestions()
   end
 end
 
+--- Set the user input text
 function InputSession:set_input(text)
   if self._closed then
     return
@@ -508,6 +540,7 @@ function InputSession:set_input(text)
   self:refresh_suggestions()
 end
 
+--- Accept the current suggestion
 function InputSession:accept()
   if self._closed then
     return
@@ -533,6 +566,7 @@ function InputSession:accept()
   self:set_input(newi)
 end
 
+--- Submit the current input
 function InputSession:submit()
   if self._closed then
     return
@@ -549,7 +583,8 @@ function InputSession:submit()
   end
 end
 
----@param delta integer
+--- Move the current selection up or down
+---@param delta integer How far to move the current selection
 function InputSession:move(delta)
   if self._closed then
     return

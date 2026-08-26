@@ -1,0 +1,734 @@
+==============================================================================
+Table of Contents                                          *minibuffer.contents*
+
+Introduction ················································ |minibuffer.intro|
+API ······························································· |minibuffer|
+Configuration ·············································· |minibuffer.config|
+DisplaySession ··································· |minibuffer.sessions.display|
+InputSession ······································· |minibuffer.sessions.input|
+ScratchSession ··································· |minibuffer.sessions.scratch|
+SelectSession ····································· |minibuffer.sessions.select|
+
+==============================================================================
+Introduction                                                  *minibuffer.intro*
+
+This plugin provides a unified and interactive buffer interface for:
+ - Displaying timely interactive content
+ - Taking user input while providing suggestions interactively
+ - Interactive selection
+
+==============================================================================
+API                                                                 *minibuffer*
+
+Call API methods using `require("minibuffer").<method>`
+
+minibuffer.initialize()                                  *minibuffer.initialize*
+    Initialize plugin
+
+
+minibuffer.input({opts}, {force})                             *minibuffer.input*
+    Open an input session
+    Options are forwarded to `minibuffer.core.InputSession.new`.
+
+    Parameters: ~
+        {opts}   (minibuffer.core.InputSessionOpts|nil)
+        {force}  (boolean|nil)
+
+    Returns: ~
+        (boolean)  started
+
+
+minibuffer.select({opts}, {force})                           *minibuffer.select*
+    Open a select session
+    Options are forwarded to `minibuffer.core.SelectSession.new`.
+
+    Parameters: ~
+        {opts}   (minibuffer.core.SelectSessionOpts|nil)
+        {force}  (boolean|nil)
+
+    Returns: ~
+        (boolean)  started
+
+
+minibuffer.display({opts}, {force})                         *minibuffer.display*
+    Open a display session
+    Options are forwarded to `minibuffer.core.DisplaySession.new`.
+
+    Parameters: ~
+        {opts}   (minibuffer.core.DisplaySessionOpts|nil)
+        {force}  (boolean|nil)
+
+    Returns: ~
+        (boolean)  started
+
+
+minibuffer.scratch({opts}, {force})                         *minibuffer.scratch*
+    Open a scratch session
+    Options are forwarded to `minibuffer.core.ScratchSession.new`.
+
+    Parameters: ~
+        {opts}   (minibuffer.core.ScratchSessionOpts|nil)
+        {force}  (boolean|nil)
+
+    Returns: ~
+        (boolean)  started
+
+
+minibuffer.resume({force})                                   *minibuffer.resume*
+    Resume last interactive minibuffer session
+
+    Parameters: ~
+        {force}  (boolean|nil)
+
+    Returns: ~
+        (boolean)  started
+
+
+minibuffer.is_active()                                    *minibuffer.is_active*
+    Return whether a session is currently active
+
+    Returns: ~
+        (boolean)
+
+
+minibuffer.get_active_session()                  *minibuffer.get_active_session*
+    Return the currently active session object (or nil)
+
+    Returns: ~
+        (minibuffer.core.Session|nil)
+
+
+minibuffer.get_active_window()                    *minibuffer.get_active_window*
+    Return the window that was active when the session was started (or nil)
+
+    Returns: ~
+        (integer|nil)
+
+
+minibuffer.core.SessionType                        *minibuffer.core.SessionType*
+
+    Type: ~
+        "display"|"input"|"scratch"|"select"
+
+
+minibuffer.core.Session                                *minibuffer.core.Session*
+
+    Fields: ~
+        {type}         (fun(self:minibuffer.core.Session):minibuffer.core.SessionType)   Get the type of a session
+        {overridable}  (fun(self:minibuffer.core.Session):boolean)                       Check if a session is overridable
+        {resumable}    (fun(self:minibuffer.core.Session):boolean)                       Check if a session is resumable
+        {pre_start}    (fun(self:minibuffer.core.Session))                               Session setup
+        {render}       (fun(self:minibuffer.core.Session))                               Render session to the screen
+        {post_start}   (fun(self:minibuffer.core.Session))                               After first render
+        {cancel}       (fun(self:minibuffer.core.Session))                               Cancel session
+        {close}        (fun(self:minibuffer.core.Session,done:fun()|nil))                Close session
+
+
+minibuffer.core.ItemCompareFn                    *minibuffer.core.ItemCompareFn*
+
+    Type: ~
+        fun(old:any,new:any):boolean
+
+
+minibuffer.core.FormatFn                              *minibuffer.core.FormatFn*
+
+    Type: ~
+        fun(item:any):minibuffer.util.HighlightLine
+
+
+minibuffer.core.CancelCallback                  *minibuffer.core.CancelCallback*
+
+    Type: ~
+        fun()
+
+
+minibuffer.core.CloseCallback                    *minibuffer.core.CloseCallback*
+
+    Type: ~
+        fun(done?:fun())
+
+
+minibuffer.core.ChangeCallback                  *minibuffer.core.ChangeCallback*
+
+    Type: ~
+        fun(value:string,item:any)
+
+
+minibuffer.util.HighlightChunk                  *minibuffer.util.HighlightChunk*
+
+    Fields: ~
+        {text}  (string)      Text to display
+        {hl}    (string|nil)  Highlight for the text
+
+
+minibuffer.util.HighlightLine                    *minibuffer.util.HighlightLine*
+
+    Type: ~
+        minibuffer.util.HighlightChunk[]
+
+
+minibuffer.util.WriteLinesOpts                  *minibuffer.util.WriteLinesOpts*
+
+    Fields: ~
+        {start_line}        (integer|nil)  Starting line in the buffer to write to (0-based)
+        {replace_existing}  (boolean|nil)  Whether to replace text in the buffer
+
+
+minibuffer.util.Keyset                                  *minibuffer.util.Keyset*
+
+    Type: ~
+        fun(modes:string|string[],lhs:string,rhs:string|function,opts?:vim.keymap.set.Opts)
+
+
+minibuffer.util.WindowState                        *minibuffer.util.WindowState*
+
+    Fields: ~
+        {height}  (integer)                 The height of the window
+        {buf}     (integer)                 The buffer attached to the window
+        {view}    (vim.fn.winsaveview.ret)  The saved winview
+
+
+==============================================================================
+Configuration                                                *minibuffer.config*
+
+
+To configure minibuffer, set the variable `vim.g.minibuffer`,
+which is a |minibuffer.Opts| table, in your Neovim configuration.
+
+Example:
+
+>lua
+---@type minibuffer.Opts
+vim.g.minibuffer = {
+   ---@type minibuffer.cmd.Opts
+   cmd = {
+     -- ...
+   },
+ }
+<
+
+Notes:
+
+ - `vim.g.minibuffer` can also be a function that returns a |minibuffer.Opts| table.
+
+
+minibuffer.cmd.Opts                                        *minibuffer.cmd.Opts*
+
+    Fields: ~
+        {enabled?}         (boolean)  Enable command line wildmenu replacement through the minibuffer
+        {autotrigger?}     (boolean)  Display completion suggestions as you type
+        {dynamic_height?}  (boolean)  Whether the completion window should shrink as items disappear.
+        {max_height?}      (integer)  Maximum height when using the command line
+
+
+minibuffer.Opts                                                *minibuffer.Opts*
+
+    Fields: ~
+        {dynamic_window_resize?}  (boolean)              Shrink other windows when the minibuffer is expanded
+        {cmd?}                    (minibuffer.cmd.Opts)  Opts for cmdline
+
+
+==============================================================================
+DisplaySession                                     *minibuffer.sessions.display*
+
+Start a display minibuffer session to write rich text content to the minibuffer
+
+                                                *minibuffer.core.DisplaySession*
+minibuffer.core.DisplaySession : minibuffer.core.Session
+
+    Fields: ~
+        {lines}           (minibuffer.util.HighlightLine[])
+        {timeout}         (integer|nil)
+        {close_keys}      (string[])
+        {dynamic_height}  (boolean)
+        {on_close}        (minibuffer.core.CloseCallback|nil)
+        {_timer}          (uv.uv_timer_t|nil)
+
+
+minibuffer.core.DisplaySessionOpts          *minibuffer.core.DisplaySessionOpts*
+
+    Fields: ~
+        {lines}           (minibuffer.util.HighlightLine[])    Formatted lines to write to the minibuffer
+        {timeout}         (integer|nil)                        Close the display session after a timeout (0 = don't timeout, wait for user to close)
+        {close_keys}      (string[]|nil)                       Keymaps (lhs) used to close the display session
+        {dynamic_height}  (boolean|nil)                        Whether to expand/shrink the window as the text grows
+        {on_close}        (minibuffer.core.CloseCallback|nil)  Callback called when the session is closed
+
+
+DisplaySession.new({opts})                                  *DisplaySession.new*
+     Create new DisplaySession
+
+    Parameters: ~
+        {opts}  (minibuffer.core.DisplaySessionOpts|nil)
+
+    Returns: ~
+        (minibuffer.core.DisplaySession)
+
+
+DisplaySession:type()                                      *DisplaySession:type*
+     Get the type of a session
+
+    Returns: ~
+        (minibuffer.core.SessionType)
+
+
+DisplaySession:overridable()                        *DisplaySession:overridable*
+     Check if a session is overridable
+
+    Returns: ~
+        (boolean)
+
+
+DisplaySession:pre_start()                            *DisplaySession:pre_start*
+     Session setup
+
+
+DisplaySession:render()                                  *DisplaySession:render*
+     Render session to the screen
+
+
+DisplaySession:post_start()                          *DisplaySession:post_start*
+     After first render
+
+
+DisplaySession:cancel()                                  *DisplaySession:cancel*
+     Cancel session
+
+
+DisplaySession:close()                                    *DisplaySession:close*
+
+
+DisplaySession:update_lines({lines})               *DisplaySession:update_lines*
+     Update the text lines in the display session
+
+    Parameters: ~
+        {lines}  (minibuffer.util.HighlightLine[])  lines to display
+
+    Returns: ~
+        (boolean)
+
+
+==============================================================================
+InputSession                                         *minibuffer.sessions.input*
+
+Start an input minibuffer session to collect interactive input from a user
+
+minibuffer.core.InputContext                      *minibuffer.core.InputContext*
+
+    Fields: ~
+        {items}          (any[])    The current list of suggestions
+        {input}          (string)   The current user input string
+        {current_index}  (integer)  1-based; 0 means no selection
+                                    The currently selected index
+        {loading}        (boolean)  Whether the suggestions are still loading
+
+
+minibuffer.core.InputFetchFn                      *minibuffer.core.InputFetchFn*
+
+    Type: ~
+        fun(input:string,cb:fun(suggestions:any[]|nil,err:any|nil))
+
+
+minibuffer.core.InputFooterFn                    *minibuffer.core.InputFooterFn*
+
+    Type: ~
+        fun(ctx:minibuffer.core.InputContext):any[]
+
+
+minibuffer.core.InputAcceptCallback        *minibuffer.core.InputAcceptCallback*
+
+    Type: ~
+        fun(ctx:minibuffer.core.InputContext):new_input
+
+
+minibuffer.core.InputSubmitCallback        *minibuffer.core.InputSubmitCallback*
+
+    Type: ~
+        fun(ctx:minibuffer.core.InputContext)
+
+
+minibuffer.core.InputStartCallback          *minibuffer.core.InputStartCallback*
+
+    Type: ~
+        fun(session:minibuffer.core.InputSession,keyset:minibuffer.util.Keyset)
+
+
+                                                  *minibuffer.core.InputSession*
+minibuffer.core.InputSession : minibuffer.core.Session
+
+    Fields: ~
+        {prompt}             (string)
+        {max_height}         (integer)
+        {dynamic_height}     (boolean)
+        {fetch_fn}           (minibuffer.core.InputFetchFn|nil)
+        {format_fn}          (minibuffer.core.FormatFn)
+        {footer_fn}          (minibuffer.core.InputFooterFn|nil)
+        {on_start}           (minibuffer.core.InputStartCallback|nil)
+        {on_accept}          (minibuffer.core.InputAcceptCallback|nil)
+        {on_submit}          (minibuffer.core.InputSubmitCallback|nil)
+        {on_cancel}          (minibuffer.core.CancelCallback|nil)
+        {on_close}           (minibuffer.core.CloseCallback|nil)
+        {on_change}          (minibuffer.core.ChangeCallback|nil)
+        {_closed}            (boolean)
+        {_entry}             ({buf:integer|nil,win:integer|nil})
+        {_display}           ({buf:integer|nil,win:integer|nil})
+        {_input}             (string)
+        {_items}             (any[])
+        {_current_index}     (integer)                                  1-based; 0 means no selection
+        {_scroll_offset}     (integer)
+        {_loading}           (boolean)
+        {_fetch_generation}  (integer)
+
+
+minibuffer.core.InputSessionOpts              *minibuffer.core.InputSessionOpts*
+
+    Fields: ~
+        {resumable}       (boolean|nil)                              Whether this specific session is reusable
+        {prompt}          (string|nil)                               The prompt string to display to the user
+        {initial_text}    (string|nil)                               The initial input text
+        {max_height}      (integer|nil)                              The max height the minibuffer can grow to
+        {dynamic_height}  (boolean|nil)                              Whether the minibuffer should ever shrink as the items decrease
+        {fetch_fn}        (minibuffer.core.InputFetchFn)             The function used to fetch suggestions based on the user input
+        {format_fn}       (minibuffer.core.FormatFn)                 The function used to format a suggestion item to be displayed
+        {footer_fn}       (minibuffer.core.InputFooterFn|nil)        The function used to generate the footer text in the window
+        {on_start}        (minibuffer.core.InputStartCallback|nil)   The callback called when the session is started
+        {on_accept}       (minibuffer.core.InputAcceptCallback|nil)  The callback called when the user accepts a suggestion
+        {on_submit}       (minibuffer.core.InputSubmitCallback)      The callback called when the user submits the input
+        {on_cancel}       (minibuffer.core.CancelCallback|nil)       The callback called when the session is canceled
+        {on_close}        (minibuffer.core.CloseCallback|nil)        The callback called when the session is closed
+        {on_change}       (minibuffer.core.ChangeCallback|nil)       The callback called when the session changes and is re-rendered
+
+
+InputSession.new({opts})                                      *InputSession.new*
+     Create new InputSession
+
+    Parameters: ~
+        {opts}  (minibuffer.core.InputSessionOpts|nil)
+
+    Returns: ~
+        (minibuffer.core.InputSession)
+
+
+InputSession:type()                                          *InputSession:type*
+     Get the type of a session
+
+    Returns: ~
+        (minibuffer.core.SessionType)
+
+
+InputSession:overridable()                            *InputSession:overridable*
+     Check if a session is overridable
+
+    Returns: ~
+        (boolean)
+
+
+InputSession:pre_start()                                *InputSession:pre_start*
+     Session setup
+
+
+InputSession:render()                                      *InputSession:render*
+     Render session to the screen
+
+
+InputSession:post_start()                              *InputSession:post_start*
+     After first render
+
+
+InputSession:cancel()                                      *InputSession:cancel*
+     Cancel session
+
+
+InputSession:close()                                        *InputSession:close*
+
+
+InputSession:get_ctx()                                    *InputSession:get_ctx*
+     Get the session context
+
+
+InputSession:refresh_suggestions()            *InputSession:refresh_suggestions*
+     Refresh suggestions based on the user input
+
+
+InputSession:set_input()                                *InputSession:set_input*
+     Set the user input text
+
+
+InputSession:accept()                                      *InputSession:accept*
+     Accept the current suggestion
+
+
+InputSession:submit()                                      *InputSession:submit*
+     Submit the current input
+
+
+InputSession:move({delta})                                   *InputSession:move*
+     Move the current selection up or down
+
+    Parameters: ~
+        {delta}  (integer)  How far to move the current selection
+
+
+==============================================================================
+ScratchSession                                     *minibuffer.sessions.scratch*
+
+Start a scratch minibuffer session which just holds a window inside of the minibuffer area
+
+                                                *minibuffer.core.ScratchSession*
+minibuffer.core.ScratchSession : minibuffer.core.Session
+
+    Fields: ~
+        {buf}         (integer)
+        {win_config}  (vim.api.keyset.win_config)
+        {enter}       (boolean)
+        {_win}        (integer)
+
+
+minibuffer.core.ScratchSessionOpts          *minibuffer.core.ScratchSessionOpts*
+
+    Fields: ~
+        {buf}         (integer)                    The buffer for the window to display
+        {win_config}  (vim.api.keyset.win_config)  The window config to use
+        {enter}       (boolean)                    Whether to enter the window upon creation
+
+
+ScratchSession.new({opts})                                  *ScratchSession.new*
+     Create new ScratchSession
+
+    Parameters: ~
+        {opts}  (minibuffer.core.ScratchSessionOpts|nil)
+
+    Returns: ~
+        (minibuffer.core.ScratchSession)
+
+
+ScratchSession:type()                                      *ScratchSession:type*
+     Get the type of a session
+
+    Returns: ~
+        (minibuffer.core.SessionType)
+
+
+ScratchSession:overridable()                        *ScratchSession:overridable*
+     Check if a session is overridable
+
+    Returns: ~
+        (boolean)
+
+
+ScratchSession:pre_start()                            *ScratchSession:pre_start*
+     Session setup
+
+
+ScratchSession:render()                                  *ScratchSession:render*
+     Render session to the screen
+
+
+ScratchSession:post_start()                          *ScratchSession:post_start*
+     After first render
+
+
+ScratchSession:cancel()                                  *ScratchSession:cancel*
+     Cancel session
+
+
+ScratchSession:close()                                    *ScratchSession:close*
+
+
+ScratchSession:set_win_config({c})               *ScratchSession:set_win_config*
+     Set the window config after it has already been created
+
+    Parameters: ~
+        {c}  (vim.api.keyset.win_config)
+
+
+ScratchSession:get_win()                                *ScratchSession:get_win*
+     Return the win id
+
+    Returns: ~
+        (integer)
+
+
+==============================================================================
+SelectSession                                       *minibuffer.sessions.select*
+
+Start an input minibuffer session to collect interactive input from a user
+
+minibuffer.core.SelectContext                    *minibuffer.core.SelectContext*
+
+    Fields: ~
+        {items}             (any[])      The current list of items
+        {input}             (string)     The current user input string
+        {current_index}     (integer)    1-based; 0 means no selection
+                                         The currently selected index
+        {selected_indices}  (integer[])  The selected indices (which items have been selected by the user)
+        {multi}             (boolean)    Whether this is a multi select session (user can select multiple items)
+        {loading}           (boolean)    Whether the suggestions are still loading
+
+
+minibuffer.core.SelectFetchFn                    *minibuffer.core.SelectFetchFn*
+
+    Type: ~
+        fun(input:string,cb:fun(items:any[]|nil,err:any|nil))
+
+
+minibuffer.core.SelectFilterFn                  *minibuffer.core.SelectFilterFn*
+
+    Type: ~
+        fun(ctx:minibuffer.core.SelectContext):any[]
+
+
+minibuffer.core.SelectFooterFn                  *minibuffer.core.SelectFooterFn*
+
+    Type: ~
+        fun(ctx:minibuffer.core.SelectContext):any[]
+
+
+minibuffer.core.SelectAcceptCallback      *minibuffer.core.SelectAcceptCallback*
+
+    Type: ~
+        fun(selection:{item:any,index:integer}[])
+
+
+minibuffer.core.SelectStartCallback        *minibuffer.core.SelectStartCallback*
+
+    Type: ~
+        fun(session:minibuffer.core.SelectSession,keyset:minibuffer.util.Keyset)
+
+
+                                                 *minibuffer.core.SelectSession*
+minibuffer.core.SelectSession : minibuffer.core.Session
+
+    Fields: ~
+        {prompt}             (string)
+        {max_height}         (integer)
+        {multi}              (boolean)
+        {dynamic_height}     (boolean)
+        {fetch_fn}           (minibuffer.core.SelectFetchFn|nil)
+        {filter_fn}          (minibuffer.core.SelectFilterFn)
+        {footer_fn}          (minibuffer.core.SelectFooterFn|nil)
+        {format_fn}          (minibuffer.core.FormatFn)
+        {on_start}           (minibuffer.core.SelectStartCallback|nil)
+        {on_accept}          (minibuffer.core.SelectAcceptCallback|nil)
+        {on_cancel}          (minibuffer.core.CancelCallback|nil)
+        {on_close}           (minibuffer.core.CloseCallback|nil)
+        {on_change}          (minibuffer.core.ChangeCallback|nil)
+        {_closed}            (boolean)
+        {_entry}             ({buf:integer|nil,win:integer|nil})
+        {_display}           ({buf:integer|nil,win:integer|nil})
+        {_input}             (string)
+        {_items}             (any[])
+        {_current_index}     (integer)                                   1-based; 0 means no selection
+        {_selected_indices}  (integer[])
+        {_scroll_offset}     (integer)
+        {_loading}           (boolean)
+        {_fetch_generation}  (integer)
+
+
+minibuffer.core.SelectSessionOpts            *minibuffer.core.SelectSessionOpts*
+
+    Fields: ~
+        {resumable}       (boolean|nil)                              Whether this specific session is reusable
+        {prompt}          (string|nil)                               The prompt string to display to the user
+        {max_height}      (integer|nil)                              The max height the minibuffer can grow to
+        {multi}           (boolean|nil)                              Whether the user will be allowed to select multiple items
+        {dynamic_height}  (boolean|nil)                              Whether the minibuffer should ever shrink as the items decrease
+        {fetch_fn}        (minibuffer.core.SelectFetchFn)            The function used to fetch items to select from
+        {filter_fn}       (minibuffer.core.SelectFilterFn)           The function used to filter the items based on the user input
+        {format_fn}       (minibuffer.core.FormatFn)                 The function used to format a suggestion item to be displayed
+        {footer_fn}       (minibuffer.core.SelectFooterFn|nil)       The function used to generate the footer text in the window
+        {on_start}        (minibuffer.core.SelectStartCallback|nil)  The callback called when the session is started
+        {on_accept}       (minibuffer.core.SelectAcceptCallback)     The callback called when the user accepts their selection(s)
+        {on_cancel}       (minibuffer.core.CancelCallback|nil)       The callback called when the session is canceled
+        {on_close}        (minibuffer.core.CloseCallback|nil)        The callback called when the session is closed
+        {on_change}       (minibuffer.core.ChangeCallback|nil)       The callback called when the session changes and is re-rendered
+
+
+SelectSession.new({opts})                                    *SelectSession.new*
+     Create new SelectSession
+
+    Parameters: ~
+        {opts}  (minibuffer.core.SelectSessionOpts|nil)
+
+    Returns: ~
+        (minibuffer.core.SelectSession)
+
+
+SelectSession:type()                                        *SelectSession:type*
+     Get the type of a session
+
+    Returns: ~
+        (minibuffer.core.SessionType)
+
+
+SelectSession:overridable()                          *SelectSession:overridable*
+     Check if a session is overridable
+
+    Returns: ~
+        (boolean)
+
+
+SelectSession:pre_start()                              *SelectSession:pre_start*
+     Session setup
+
+
+SelectSession:render()                                    *SelectSession:render*
+     Render session to the screen
+
+
+SelectSession:post_start()                            *SelectSession:post_start*
+     After first render
+
+
+SelectSession:cancel()                                    *SelectSession:cancel*
+     Cancel session
+
+
+SelectSession:close()                                      *SelectSession:close*
+
+
+SelectSession:get_ctx()                                  *SelectSession:get_ctx*
+     Get the session context
+
+
+SelectSession:refresh_results()                  *SelectSession:refresh_results*
+     Refresh items based on the user input
+
+
+SelectSession:accept()                                    *SelectSession:accept*
+     Accept the current selection(s)
+
+
+SelectSession:move({delta})                                 *SelectSession:move*
+     Move the current selection up or down
+
+    Parameters: ~
+        {delta}  (integer)  How far to move the current selection
+
+
+SelectSession:is_selected({index})                   *SelectSession:is_selected*
+     Check if one of the items is selected by the user
+
+    Parameters: ~
+        {index}  (integer)
+
+    Returns: ~
+        (boolean)
+
+
+SelectSession:get_selected()                        *SelectSession:get_selected*
+     Get the current item under the cursor
+
+    Returns: ~
+        (any|nil)
+
+
+SelectSession:toggle_selection()                *SelectSession:toggle_selection*
+     Toggle selection on the current item
+
+
+SelectSession:toggle_selection_all()        *SelectSession:toggle_selection_all*
+     Toggle selecting all items
+
+
+vim:tw=78:ts=8:noet:ft=help:norl:

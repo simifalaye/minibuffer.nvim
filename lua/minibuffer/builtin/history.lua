@@ -65,7 +65,7 @@ return function(opts)
     end,
     format_fn = format_fn,
     filter_fn = filter_fn,
-    on_select = function(selection)
+    on_accept = function(selection)
       local item = selection[1].item
       if not item then
         return

@@ -73,7 +73,7 @@ return function(opts)
     end,
     format_fn = format_fn,
     filter_fn = filter_fn,
-    on_select = function(selection)
+    on_accept = function(selection)
       if #selection == 1 then
         local item = selection[1].item
         vim.cmd("edit " .. vim.fn.fnameescape(item.path))

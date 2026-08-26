@@ -1,3 +1,8 @@
+---@mod minibuffer.sessions.select SelectSession
+---@brief [[
+---Start an input minibuffer session to collect interactive input from a user
+---@brief ]]
+
 local config = require("minibuffer.config")
 local state = require("minibuffer.internal.state")
 local util = require("minibuffer.internal.util")
@@ -11,17 +16,23 @@ local function win_state_is_valid(conf)
 end
 
 ---@class minibuffer.core.SelectContext
+---The current list of items
 ---@field items any[]
+---The current user input string
 ---@field input string
+---The currently selected index
 ---@field current_index integer 1-based; 0 means no selection
----@field selected_indicies integer[]
+---The selected indices (which items have been selected by the user)
+---@field selected_indices integer[]
+---Whether this is a multi select session (user can select multiple items)
 ---@field multi boolean
+---Whether the suggestions are still loading
 ---@field loading boolean
 
 ---@alias minibuffer.core.SelectFetchFn fun(input:string, cb:fun(items: any[]|nil, err:any|nil))
 ---@alias minibuffer.core.SelectFilterFn fun(ctx:minibuffer.core.SelectContext): any[]
 ---@alias minibuffer.core.SelectFooterFn fun(ctx:minibuffer.core.SelectContext): any[]
----@alias minibuffer.core.SelectCallback fun(selection: {item:any, index: integer}[])
+---@alias minibuffer.core.SelectAcceptCallback fun(selection: {item:any, index: integer}[])
 ---@alias minibuffer.core.SelectStartCallback fun(session: minibuffer.core.SelectSession, keyset: minibuffer.util.Keyset)
 
 ---@class minibuffer.core.SelectSession : minibuffer.core.Session
@@ -34,7 +45,7 @@ end
 ---@field footer_fn minibuffer.core.SelectFooterFn|nil
 ---@field format_fn minibuffer.core.FormatFn
 ---@field on_start minibuffer.core.SelectStartCallback|nil
----@field on_select minibuffer.core.SelectCallback|nil
+---@field on_accept minibuffer.core.SelectAcceptCallback|nil
 ---@field on_cancel minibuffer.core.CancelCallback|nil
 ---@field on_close minibuffer.core.CloseCallback|nil
 ---@field on_change minibuffer.core.ChangeCallback|nil
@@ -53,27 +64,41 @@ SelectSession.__index = SelectSession
 SelectSession = SelectSession
 
 ---@class minibuffer.core.SelectSessionOpts
+---Whether this specific session is reusable
 ---@field resumable boolean|nil
+---The prompt string to display to the user
 ---@field prompt string|nil
+---The max height the minibuffer can grow to
 ---@field max_height integer|nil
+---Whether the user will be allowed to select multiple items
 ---@field multi boolean|nil
+---Whether the minibuffer should ever shrink as the items decrease
 ---@field dynamic_height boolean|nil
+---The function used to fetch items to select from
 ---@field fetch_fn minibuffer.core.SelectFetchFn
+---The function used to filter the items based on the user input
 ---@field filter_fn minibuffer.core.SelectFilterFn
+---The function used to format a suggestion item to be displayed
 ---@field format_fn minibuffer.core.FormatFn
+---The function used to generate the footer text in the window
 ---@field footer_fn minibuffer.core.SelectFooterFn|nil
+---The callback called when the session is started
 ---@field on_start minibuffer.core.SelectStartCallback|nil
----@field on_select minibuffer.core.SelectCallback
+---The callback called when the user accepts their selection(s)
+---@field on_accept minibuffer.core.SelectAcceptCallback
+---The callback called when the session is canceled
 ---@field on_cancel minibuffer.core.CancelCallback|nil
+---The callback called when the session is closed
 ---@field on_close minibuffer.core.CloseCallback|nil
+---The callback called when the session changes and is re-rendered
 ---@field on_change minibuffer.core.ChangeCallback|nil
 
+--- Create new SelectSession
 ---@param opts minibuffer.core.SelectSessionOpts|nil
 ---@return minibuffer.core.SelectSession
 function SelectSession.new(opts)
   opts = opts or {}
   local self = setmetatable({
-    resumable = opts.resumable == true,
     prompt = opts.prompt or "Select: ",
     max_height = opts.max_height or 15,
     multi = opts.multi == true,
@@ -89,12 +114,12 @@ function SelectSession.new(opts)
       }
     end,
     on_start = opts.on_start,
-    on_select = opts.on_select,
+    on_accept = opts.on_accept,
     on_cancel = opts.on_cancel,
     on_close = opts.on_close,
     on_change = opts.on_change,
 
-    _closed = false,
+    _closed = true,
     _entry = { buf = nil, win = nil },
     _display = { buf = nil, win = nil },
     _input = "",
@@ -109,19 +134,27 @@ function SelectSession.new(opts)
   assert(self.filter_fn ~= nil, "Must provide filter_fn")
   assert(self.format_fn ~= nil, "Must provide format_fn")
 
+  local resumable = opts.resumable == true
+  function self:resumable()
+    return resumable
+  end
+
   return self
 end
 
+--- Get the type of a session
 ---@return minibuffer.core.SessionType
 function SelectSession:type()
   return "select"
 end
 
+--- Check if a session is overridable
 ---@return boolean
 function SelectSession:overridable()
   return true
 end
 
+--- Session setup
 function SelectSession:pre_start()
   local cmd_win = util.get_cmd_win()
   if not cmd_win then
@@ -193,6 +226,7 @@ function SelectSession:pre_start()
   vim.wo[self._entry.win].winhighlight = "Normal:MinibufferPrompt"
 end
 
+--- Render session to the screen
 function SelectSession:render()
   if self._closed then
     return
@@ -281,6 +315,7 @@ function SelectSession:render()
   vim.api.nvim__redraw({ flush = true, cursor = true })
 end
 
+--- After first render
 function SelectSession:post_start()
   if self._closed then
     return
@@ -366,6 +401,7 @@ function SelectSession:post_start()
   end
 end
 
+--- Cancel session
 function SelectSession:cancel()
   if self._closed then
     return
@@ -381,6 +417,8 @@ function SelectSession:cancel()
   end)
 end
 
+--- Close session
+---@param done fun()? callback when close is completed
 function SelectSession:close(done)
   if self._closed then
     return
@@ -451,17 +489,19 @@ function SelectSession:close(done)
   end
 end
 
+--- Get the session context
 function SelectSession:get_ctx()
   return {
     items = self._items,
     input = self._input,
     current_index = self._current_index,
-    selected_indicies = self._selected_indices,
+    selected_indices = self._selected_indices,
     multi = self.multi,
     loading = self._loading,
   }
 end
 
+--- Refresh items based on the user input
 function SelectSession:refresh_results()
   if self._closed then
     return
@@ -508,6 +548,7 @@ function SelectSession:refresh_results()
   end
 end
 
+--- Accept the current selection(s)
 function SelectSession:accept()
   if self._closed then
     return
@@ -531,7 +572,7 @@ function SelectSession:accept()
     selection = { { item = self._items[self._current_index], index = 1 } }
   end
 
-  local cb = self.on_select
+  local cb = self.on_accept
   self:close(function()
     if cb then
       vim.schedule(function()
@@ -541,7 +582,8 @@ function SelectSession:accept()
   end)
 end
 
----@param delta integer
+--- Move the current selection up or down
+---@param delta integer How far to move the current selection
 function SelectSession:move(delta)
   if self._closed then
     return
@@ -556,6 +598,7 @@ function SelectSession:move(delta)
   self:render()
 end
 
+--- Check if one of the items is selected by the user
 ---@param index integer
 ---@return boolean
 function SelectSession:is_selected(index)
@@ -570,6 +613,7 @@ function SelectSession:is_selected(index)
   return false
 end
 
+--- Get the current item under the cursor
 ---@return any|nil
 function SelectSession:get_selected()
   if self._current_index > 0 then
@@ -578,6 +622,7 @@ function SelectSession:get_selected()
   return nil
 end
 
+--- Toggle selection on the current item
 function SelectSession:toggle_selection()
   if self._closed then
     return
@@ -600,6 +645,7 @@ function SelectSession:toggle_selection()
   self:render()
 end
 
+--- Toggle selecting all items
 function SelectSession:toggle_selection_all()
   if self._closed then
     return

@@ -76,7 +76,7 @@ function M.file_search(opts)
         return item.relative_path and item.relative_path:len() > 0
       end, ctx.items)
     end,
-    on_select = function(selection)
+    on_accept = function(selection)
       if #selection == 1 then
         local item = selection[1].item
         vim.cmd("edit " .. vim.fn.fnameescape(item.relative_path))
@@ -180,7 +180,7 @@ function M.content_search(opts)
         return item.relative_path and item.relative_path:len() > 0 and item.line_number
       end, ctx.items)
     end,
-    on_select = function(selection)
+    on_accept = function(selection)
       if #selection == 1 then
         local item = selection[1].item
         vim.cmd("edit " .. vim.fn.fnameescape(item.relative_path))

@@ -118,7 +118,7 @@ return function()
         update_preview_win(active_win, item.bufnr)
       end
     end,
-    on_select = function(selection)
+    on_accept = function(selection)
       if #selection == 1 then
         local item = selection[1].item
         if vim.api.nvim_buf_is_valid(item.bufnr) then

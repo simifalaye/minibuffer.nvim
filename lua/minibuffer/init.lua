@@ -1,3 +1,19 @@
+---@toc minibuffer.contents
+
+---@mod minibuffer.intro Introduction
+---@brief [[
+---This plugin provides a unified and interactive buffer interface for:
+--- - Displaying timely interactive content
+--- - Taking user input while providing suggestions interactively
+--- - Interactive selection
+---@brief ]]
+---
+---@mod minibuffer API
+---
+---@brief [[
+---Call API methods using `require("minibuffer").<method>`
+---@brief ]]
+
 ---@param session minibuffer.core.Session
 ---@param force boolean|nil
 ---@return boolean started
@@ -50,10 +66,10 @@ local function start_session(session, force)
   return true
 end
 
-local M = {}
+local minibuffer = {}
 
 ---Initialize plugin
-function M.initialize()
+function minibuffer.initialize()
   local state = require("minibuffer.internal.state")
   if state.initialized then
     return
@@ -195,45 +211,45 @@ function M.initialize()
 end
 
 ---Open an input session
----Options are forwarded to `M.InputSession.new`.
+---Options are forwarded to `minibuffer.core.InputSession.new`.
 ---@param opts minibuffer.core.InputSessionOpts|nil
 ---@param force boolean|nil
 ---@return boolean started
-function M.input(opts, force)
+function minibuffer.input(opts, force)
   return start_session(require("minibuffer.sessions.input").new(opts or {}), force)
 end
 
 ---Open a select session
----Options are forwarded to `M.SelectSession.new`.
+---Options are forwarded to `minibuffer.core.SelectSession.new`.
 ---@param opts minibuffer.core.SelectSessionOpts|nil
 ---@param force boolean|nil
 ---@return boolean started
-function M.select(opts, force)
+function minibuffer.select(opts, force)
   return start_session(require("minibuffer.sessions.select").new(opts or {}), force)
 end
 
 ---Open a display session
----Options are forwarded to `M.DisplaySession.new`.
+---Options are forwarded to `minibuffer.core.DisplaySession.new`.
 ---@param opts minibuffer.core.DisplaySessionOpts|nil
 ---@param force boolean|nil
 ---@return boolean started
-function M.display(opts, force)
+function minibuffer.display(opts, force)
   return start_session(require("minibuffer.sessions.display").new(opts or {}), force)
 end
 
 ---Open a scratch session
----Options are forwarded to `M.ScratchSession.new`.
+---Options are forwarded to `minibuffer.core.ScratchSession.new`.
 ---@param opts minibuffer.core.ScratchSessionOpts|nil
 ---@param force boolean|nil
 ---@return boolean started
-function M.scratch(opts, force)
+function minibuffer.scratch(opts, force)
   return start_session(require("minibuffer.sessions.scratch").new(opts or {}), force)
 end
 
 ---Resume last interactive minibuffer session
 ---@param force boolean|nil
 ---@return boolean started
-function M.resume(force)
+function minibuffer.resume(force)
   local state = require("minibuffer.internal.state")
   if not state.prev_session then
     vim.notify("[minibuffer] No session available to resume.", vim.log.levels.WARN)
@@ -244,23 +260,23 @@ end
 
 ---Return whether a session is currently active
 ---@return boolean
-function M.is_active()
+function minibuffer.is_active()
   local state = require("minibuffer.internal.state")
   return state.session ~= nil
 end
 
 ---Return the currently active session object (or nil)
 ---@return minibuffer.core.Session|nil
-function M.get_active_session()
+function minibuffer.get_active_session()
   local state = require("minibuffer.internal.state")
   return state.session
 end
 
 ---Return the window that was active when the session was started (or nil)
 ---@return integer|nil
-function M.get_active_window()
+function minibuffer.get_active_window()
   local state = require("minibuffer.internal.state")
   return state.active_window
 end
 
-return M
+return minibuffer

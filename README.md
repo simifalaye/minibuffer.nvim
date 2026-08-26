@@ -19,8 +19,8 @@ This includes:
 - Fuzzy finding files or buffers.
 - Searching text across a project.
 - Input prompts for LSP or Git actions.
-- Even interactive plugin UIs (think Telescope, fzf, etc).
-- Display timely content (think which-key.nvim or mini.pick)
+- Even interactive plugin UIs (think Telescope, fzf, mini.pick, etc).
+- Display timely content (think which-key.nvim or mini.clue)
 
 For Neovim, something like this could replace the ad-hoc popup/floating windows many plugins use, giving us a consistent workflow: a single expandable buffer for all kinds of input and interactive tasks.
 
@@ -362,9 +362,5 @@ return true
 
 # Developer Notes
 
-API documentation for the various minibuffer session types and overall plugin will come as the API stabilizes a bit more.
-As such, please refer to the following files/directories that contain the type definitions/options:
-* `lua/minibuffer/types.lua`
-- `lua/minibuffer/sessions/*`
-
-For examples on how the options can be used, see `lua/minibuffer/builtin/*`
+Find all information and API using: `:h minibuffer`
+For examples on how the API can be used, see `lua/minibuffer/builtin/*`

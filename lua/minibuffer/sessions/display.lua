@@ -1,3 +1,8 @@
+---@mod minibuffer.sessions.display DisplaySession
+---@brief [[
+---Start a display minibuffer session to write rich text content to the minibuffer
+---@brief ]]
+
 local config = require("minibuffer.config")
 local state = require("minibuffer.internal.state")
 local util = require("minibuffer.internal.util")
@@ -13,40 +18,53 @@ local DisplaySession = {}
 DisplaySession.__index = DisplaySession
 
 ---@class minibuffer.core.DisplaySessionOpts
+---Formatted lines to write to the minibuffer
 ---@field lines minibuffer.util.HighlightLine[]
+---Close the display session after a timeout (0 = don't timeout, wait for user to close)
 ---@field timeout integer|nil
+---Keymaps (lhs) used to close the display session
 ---@field close_keys string[]|nil
+---Whether to expand/shrink the window as the text grows
 ---@field dynamic_height boolean|nil
+---Callback called when the session is closed
 ---@field on_close minibuffer.core.CloseCallback|nil
 
+--- Create new DisplaySession
 ---@param opts minibuffer.core.DisplaySessionOpts|nil
 ---@return minibuffer.core.DisplaySession
 function DisplaySession.new(opts)
   opts = opts or {}
   local self = setmetatable({
-    resumable = false,
     lines = opts.lines or {},
     timeout = opts.timeout,
     close_keys = opts.close_keys or { "<F5>" },
     dynamic_height = opts.dynamic_height == true,
     on_close = opts.on_close,
 
-    _closed = false,
+    _closed = true,
     _timer = nil,
   }, DisplaySession)
+
+  function self:resumable()
+    return false
+  end
+
   return self
 end
 
+--- Get the type of a session
 ---@return minibuffer.core.SessionType
 function DisplaySession:type()
   return "display"
 end
 
+--- Check if a session is overridable
 ---@return boolean
 function DisplaySession:overridable()
   return true
 end
 
+--- Session setup
 function DisplaySession:pre_start()
   local buf = util.get_cmd_buf()
   local win = util.get_cmd_win()
@@ -77,6 +95,7 @@ function DisplaySession:pre_start()
   util.wipe_cmd_buffer()
 end
 
+--- Render session to the screen
 function DisplaySession:render()
   if self._closed then
     return
@@ -104,6 +123,7 @@ function DisplaySession:render()
   vim.api.nvim__redraw({ flush = true, cursor = true })
 end
 
+--- After first render
 function DisplaySession:post_start()
   if self._closed then
     return
@@ -123,6 +143,7 @@ function DisplaySession:post_start()
   end
 end
 
+--- Cancel session
 function DisplaySession:cancel()
   if self._closed then
     return
@@ -131,6 +152,8 @@ function DisplaySession:cancel()
   self:close()
 end
 
+--- Close session
+---@param done fun()? callback when close is completed
 function DisplaySession:close(done)
   if self._closed then
     return
@@ -170,7 +193,8 @@ function DisplaySession:close(done)
   end
 end
 
----@param lines minibuffer.core.HighlightLine[]
+--- Update the text lines in the display session
+---@param lines minibuffer.util.HighlightLine[] lines to display
 ---@return boolean
 function DisplaySession:update_lines(lines)
   if self._closed then
