@@ -105,9 +105,11 @@ This plugin can be configured by using `vim.g.minibuffer` (preferably set before
 ```lua
 -- Default configuration
 vim.g.minibuffer = {
+  dynamic_window_resize = true, -- Shrink other windows when the minibuffer is expanded
   cmd = {
     -- NOTE: minibuffer cmd is not compatible with command line plugins that force `wildtrigger()` each `wildchar` such as mini.cmdline
     enabled = true, -- Enable command line wildmenu replacement through the minibuffer
+    autotrigger = true, -- Display completion suggestions as you type
     dynamic_height = false, -- Whether the completion window should shrink as items disappear.
     max_height = 15, -- Maximum height when using the command line
    },

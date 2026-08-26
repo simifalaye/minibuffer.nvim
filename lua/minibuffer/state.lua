@@ -19,11 +19,8 @@ M.session = nil
 ---@type minibuffer.core.Session|nil
 M.prev_session = nil
 
----@type table<integer, integer>
-M.win_sizes = {}
-
----@type table<integer, { buf: integer, view: vim.fn.winsaveview.ret }>
-M.win_views = {}
+---@type table<integer, minibuffer.util.WindowState>
+M.win_states = {}
 
 ---@type integer
 M.augroup = vim.api.nvim_create_augroup("minibuffer", { clear = true })

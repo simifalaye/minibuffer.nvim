@@ -1,3 +1,4 @@
+local config = require("minibuffer.config")
 local state = require("minibuffer.state")
 local util = require("minibuffer.util")
 
@@ -125,8 +126,7 @@ function InputSession:pre_start()
   util.wipe_cmd_buffer()
 
   self._closed = false
-  state.win_sizes = util.get_window_sizes()
-  state.win_views = util.get_win_views()
+  state.win_states = util.get_window_states()
 
   -- Setup display buffer and window
   local display_height = math.max(1, math.min(self.max_height, #self._items))
@@ -237,8 +237,7 @@ function InputSession:render()
   -- Set heights
   util.set_win_height(self._display.win, display_height)
   util.set_win_height(self._entry.win, display_height + 2)
-  util.set_cmdheight(display_height + 2)
-  util.resize_windows_for_cmdheight(state.win_sizes, display_height - util.get_ext().cmdheight)
+  util.set_cmdheight(state.win_states, config.get().dynamic_window_resize, display_height + 2)
 
   -- Build display output
   local start_idx = self._scroll_offset + 1
@@ -269,8 +268,7 @@ function InputSession:render()
     pcall(self.on_change, self._input, self._items[self._current_index])
   end
 
-  -- Force redraw
-  vim.cmd.redraw()
+  vim.api.nvim__redraw({ flush = true, cursor = true })
 end
 
 function InputSession:post_start()
@@ -381,7 +379,7 @@ function InputSession:close(done)
     cleaned_up = true
     vim.cmd("stopinsert")
 
-    util.set_cmdheight()
+    util.set_cmdheight(state.win_states, config.get().dynamic_window_resize)
 
     if self._display.win and vim.api.nvim_win_is_valid(self._display.win) then
       pcall(vim.api.nvim_win_close, self._display.win, true)
@@ -400,8 +398,7 @@ function InputSession:close(done)
     self._entry.win = nil
     self._entry.buf = nil
 
-    util.restore_window_sizes(state.win_sizes)
-    util.restore_win_views(state.win_views)
+    util.restore_window_states(state.win_states)
 
     local active_win = state.active_window
     if active_win and vim.api.nvim_win_is_valid(active_win) then

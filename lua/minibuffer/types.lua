@@ -30,3 +30,8 @@ Session.__index = Session
 ---@alias minibuffer.core.ChangeCallback fun(value:string, item:any)
 
 ---@alias minibuffer.util.Keyset fun(modes:string|string[], lhs:string, rhs:string|function, opts?:vim.keymap.set.Opts)
+
+---@class minibuffer.util.WindowState
+---@field height integer
+---@field buf integer
+---@field view vim.fn.winsaveview.ret

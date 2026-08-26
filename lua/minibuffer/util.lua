@@ -5,6 +5,152 @@ if not ext then
   )
 end
 
+---@return integer[]
+local function get_resizable_windows()
+  local resizable = {}
+  for _, win in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
+    local cfg = vim.api.nvim_win_get_config(win)
+    -- Ignore floating windows
+    if not cfg.relative or cfg.relative == "" or cfg.relative == "minibuffer" then
+      resizable[#resizable + 1] = win
+    end
+  end
+  return resizable
+end
+
+---@param states table<integer, minibuffer.util.WindowState>
+---@param cmdheight integer
+local function resize_windows_for_cmdheight(states, cmdheight)
+  local delta = cmdheight - ext.cmdheight
+  if delta == 0 then
+    return
+  end
+
+  local function subtree_height(node)
+    if node[1] == "leaf" then
+      return states[node[2]] and states[node[2]].height or 0
+    end
+
+    local total = 0
+    if node[1] == "col" then
+      for _, child in ipairs(node[2]) do
+        total = total + subtree_height(child)
+      end
+    else -- row
+      for _, child in ipairs(node[2]) do
+        total = math.max(total, subtree_height(child))
+      end
+    end
+    return total
+  end
+
+  local layout = vim.fn.winlayout()
+  local root_height = subtree_height(layout)
+  local new_root_height = math.max(1, root_height - delta)
+
+  -- Split an integer amount proportionally.
+  -- Example:
+  --   total = 17
+  --   weights = { 10, 10, 10 }
+  -- Gives { 6, 6, 5 }
+  --
+  -- This guarantees that:
+  --     sum(result) == total
+  -- while keeping the result as close as possible to the exact proportions.
+  local function proportional_integer_split(total, weights)
+    local r = {}
+    local remainders = {}
+    local weight_sum = 0
+
+    for _, weight in ipairs(weights) do
+      weight_sum = weight_sum + weight
+    end
+
+    if weight_sum == 0 then
+      for i = 1, #weights do
+        r[i] = 0
+      end
+      return r
+    end
+
+    local assigned = 0
+    for i, weight in ipairs(weights) do
+      local numerator = total * weight
+      local value = math.floor(numerator / weight_sum)
+      r[i] = value
+      assigned = assigned + value
+      remainders[i] = numerator % weight_sum
+    end
+
+    -- Distribute the leftover rows to the children with the largest fractional remainders
+    local remaining = total - assigned
+    while remaining > 0 do
+      local best = 1
+      for i = 2, #weights do
+        if remainders[i] > remainders[best] then
+          best = i
+        end
+      end
+      r[best] = r[best] + 1
+      remainders[best] = -1
+      remaining = remaining - 1
+    end
+
+    return r
+  end
+
+  -- Recursively assign target heights.
+  -- target_height is the height that this entire subtree must occupy.
+  local function assign(node, target_height)
+    local kind = node[1]
+
+    if kind == "leaf" then
+      local w = node[2]
+      local state = states[w]
+      if not state then
+        return
+      end
+
+      -- Set the window height
+      vim.api.nvim_win_set_height(w, target_height)
+
+      -- Set the top line based on the amount we shrunk the window by
+      local view = vim.deepcopy(state.view)
+      local topline = math.min(view.topline + (state.height - target_height), view.lnum)
+      view.topline = topline
+      vim.api.nvim_win_call(w, function()
+        vim.fn.winrestview(view)
+      end)
+      return
+    end
+
+    local children = node[2]
+    if #children == 0 then
+      return
+    end
+
+    if kind == "row" then
+      -- Side-by-side: The children have exactly the same height.
+      for _, child in ipairs(children) do
+        assign(child, target_height)
+      end
+    else -- col
+      -- Stacked: The children have to divide the available height.
+      local weights = {}
+      for _, child in ipairs(children) do
+        weights[#weights + 1] = subtree_height(child)
+      end
+
+      local child_heights = proportional_integer_split(target_height, weights)
+      for i, child in ipairs(children) do
+        assign(child, child_heights[i])
+      end
+    end
+  end
+
+  assign(layout, new_root_height)
+end
+
 local M = {}
 
 function M.get_ext()
@@ -121,74 +267,29 @@ function M.restore_cmd_opts(kind, opts)
   end
 end
 
----@return integer[]
-function M.get_resizable_windows()
-  local resizable = {}
-  for _, win in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
-    local cfg = vim.api.nvim_win_get_config(win)
-    if not cfg.relative or cfg.relative == "" then
-      resizable[#resizable + 1] = win
-    end
-  end
-  return resizable
-end
-
----@return table<integer, integer>
-function M.get_window_sizes()
-  local win_sizes = {}
-  for _, win in ipairs(M.get_resizable_windows()) do
-    win_sizes[win] = vim.api.nvim_win_get_height(win)
-  end
-  return win_sizes
-end
-
----@param win_sizes table<integer, integer>
----@param extra integer
-function M.resize_windows_for_cmdheight(win_sizes, extra)
-  local total = 0
-  for _, height in pairs(win_sizes) do
-    total = total + height
-  end
-  if total == 0 then
-    return
-  end
-  for win, height in pairs(win_sizes) do
-    if vim.api.nvim_win_is_valid(win) then
-      local new_height = math.max(1, math.floor(height - (height / total) * extra))
-      vim.api.nvim_win_set_height(win, new_height)
-    end
-  end
-end
-
----@param win_sizes table<integer, integer>
-function M.restore_window_sizes(win_sizes)
-  for win, height in pairs(win_sizes) do
-    if vim.api.nvim_win_is_valid(win) then
-      vim.api.nvim_win_set_height(win, height)
-    end
-  end
-end
-
----@return table<integer, { buf: integer, view: vim.fn.winsaveview.ret }>
-function M.get_win_views()
-  local views = {}
-  for _, win in ipairs(M.get_resizable_windows()) do
-    views[win] = {
+---@return table<integer, minibuffer.util.WindowState>
+function M.get_window_states()
+  local states = {}
+  for _, win in ipairs(get_resizable_windows()) do
+    local view = vim.api.nvim_win_call(win, function()
+      return vim.fn.winsaveview()
+    end)
+    states[win] = {
+      height = vim.api.nvim_win_get_height(win),
       buf = vim.api.nvim_win_get_buf(win),
-      view = vim.api.nvim_win_call(win, function()
-        return vim.fn.winsaveview()
-      end),
+      view = view,
     }
   end
-  return views
+  return states
 end
 
----@param views table<integer, { buf: integer, view: vim.fn.winsaveview.ret }>
-function M.restore_win_views(views)
-  for win, data in pairs(views) do
-    if vim.api.nvim_win_is_valid(win) and vim.api.nvim_win_get_buf(win) == data.buf then
+---@param states table<integer, minibuffer.util.WindowState>
+function M.restore_window_states(states)
+  for win, state in pairs(states) do
+    if vim.api.nvim_win_is_valid(win) and vim.api.nvim_win_get_buf(win) == state.buf then
+      vim.api.nvim_win_set_height(win, state.height)
       vim.api.nvim_win_call(win, function()
-        vim.fn.winrestview(data.view)
+        vim.fn.winrestview(state.view)
       end)
     end
   end
@@ -210,8 +311,10 @@ function M.set_win_height(win, height)
   end
 end
 
+---@param states table<integer, minibuffer.util.WindowState>
+---@param resize_windows boolean
 ---@param height integer|nil If nil the reset to ext.cmdheight
-function M.set_cmdheight(height)
+function M.set_cmdheight(states, resize_windows, height)
   local win = M.get_cmd_win()
   if not win or not vim.api.nvim_win_is_valid(win) then
     return
@@ -234,6 +337,10 @@ function M.set_cmdheight(height)
       vim.o.cmdheight = height
     end)
     ext.msg.set_pos()
+  end
+
+  if resize_windows then
+    resize_windows_for_cmdheight(states, height)
   end
 end
 

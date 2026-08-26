@@ -7,6 +7,7 @@ local M = {}
 ---@field max_height integer|nil
 
 ---@class minibuffer.config
+---@field dynamic_window_resize boolean|nil
 ---@field cmd minibuffer.config.cmd|nil
 
 ---@class minibuffer.config.State
@@ -18,6 +19,7 @@ local state = {
 local function init()
   local config = vim.g.minibuffer or {}
   local default_config = {
+    dynamic_window_resize = true,
     cmd = {
       enabled = true,
       autotrigger = true,

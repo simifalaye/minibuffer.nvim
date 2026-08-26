@@ -1,3 +1,4 @@
+local config = require("minibuffer.config")
 local state = require("minibuffer.state")
 local util = require("minibuffer.util")
 
@@ -49,8 +50,11 @@ local function set_height(height)
 
   s.cmdheight = height + 1
   util.set_win_height(s.win, height)
-  util.set_cmdheight(s.cmdheight)
-  util.resize_windows_for_cmdheight(state.win_sizes, height - util.get_ext().cmdheight)
+  util.set_cmdheight(
+    state.win_states,
+    config.get().dynamic_window_resize,
+    s.cmdheight
+  )
 end
 
 ---Add command descriptions to completion items.
@@ -157,7 +161,7 @@ local function render()
     )
   end
 
-  vim.cmd.redraw()
+  vim.api.nvim__redraw({ flush = true, cursor = true })
 end
 
 ---Handle a `vim.ui_attach()` event.
@@ -260,8 +264,7 @@ function M.enable()
 
   s.is_active = true
 
-  state.win_sizes = util.get_window_sizes()
-  state.win_views = util.get_win_views()
+  state.win_states = util.get_window_states()
 
   vim.ui_attach(state.ns, {
     ext_popupmenu = true,
@@ -305,7 +308,7 @@ function M.disable()
 
   local _, _ = pcall(vim.keymap.del, "c", "<C-y>")
 
-  util.set_cmdheight()
+  util.set_cmdheight(state.win_states, config.get().dynamic_window_resize)
 
   -- Cleanup window and buf
   if valid_win() then
@@ -337,16 +340,17 @@ function M.update_cmdheight()
     return
   end
 
-  util.set_cmdheight(s.cmdheight > 0 and s.cmdheight or 1)
+  util.set_cmdheight(
+    state.win_states,
+    config.get().dynamic_window_resize,
+    s.cmdheight > 0 and s.cmdheight or 1
+  )
 end
 
 --- Cleanup old state and restore windows
 function M.cleanup()
-  if state.win_sizes then
-    util.restore_window_sizes(state.win_sizes)
-  end
-  if state.win_views then
-    util.restore_win_views(state.win_views)
+  if state.win_states then
+    util.restore_window_states(state.win_states)
   end
   state.cleanup()
 end

@@ -1,3 +1,4 @@
+local config = require("minibuffer.config")
 local state = require("minibuffer.state")
 local util = require("minibuffer.util")
 
@@ -49,8 +50,7 @@ function ScratchSession:pre_start()
   end
 
   self._closed = false
-  state.win_sizes = util.get_window_sizes()
-  state.win_views = util.get_win_views()
+  state.win_states = util.get_window_states()
 
   util.wipe_cmd_buffer()
 end
@@ -106,9 +106,9 @@ function ScratchSession:render()
     additional_height = additional_height + 2
   end
 
-  util.set_cmdheight(cfg.height + additional_height)
-  util.resize_windows_for_cmdheight(state.win_sizes, cfg.height - util.get_ext().cmdheight)
-  vim.cmd.redraw()
+  util.set_cmdheight(state.win_states, config.get().dynamic_window_resize, cfg.height + additional_height)
+
+  vim.api.nvim__redraw({ flush = true, cursor = true })
 end
 
 function ScratchSession:post_start() end
@@ -138,12 +138,11 @@ function ScratchSession:close(done)
   end
 
   util.wipe_cmd_buffer()
-  util.set_cmdheight()
+  util.set_cmdheight(state.win_states, config.get().dynamic_window_resize)
   if state.active_window and vim.api.nvim_win_is_valid(state.active_window) then
     pcall(vim.api.nvim_set_current_win, state.active_window)
   end
-  util.restore_window_sizes(state.win_sizes)
-  util.restore_win_views(state.win_views)
+  util.restore_window_states(state.win_states)
 
   state.cleanup()
 
@@ -154,8 +153,8 @@ function ScratchSession:close(done)
   end
 end
 
----@param config vim.api.keyset.win_config
-function ScratchSession:set_win_config(config)
+---@param c vim.api.keyset.win_config
+function ScratchSession:set_win_config(c)
   if self._closed then
     return false
   end
@@ -165,7 +164,7 @@ function ScratchSession:set_win_config(config)
     return
   end
 
-  local cfg = vim.tbl_deep_extend("force", config, {
+  local cfg = vim.tbl_deep_extend("force", c, {
     anchor = "SW",
     relative = "editor",
     row = vim.o.lines,

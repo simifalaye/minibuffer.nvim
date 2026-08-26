@@ -1,3 +1,4 @@
+local config = require("minibuffer.config")
 local state = require("minibuffer.state")
 local util = require("minibuffer.util")
 
@@ -54,8 +55,7 @@ function DisplaySession:pre_start()
   end
 
   self._closed = false
-  state.win_sizes = util.get_window_sizes()
-  state.win_views = util.get_win_views()
+  state.win_states = util.get_window_states()
 
   if self.timeout and self.timeout > 0 then
     local _timer = vim.uv.new_timer()
@@ -99,9 +99,9 @@ function DisplaySession:render()
   if not self.dynamic_height then
     new_height = math.max(vim.api.nvim_win_get_height(win), new_height)
   end
-  util.set_cmdheight(new_height + 1)
-  util.resize_windows_for_cmdheight(state.win_sizes, new_height - util.get_ext().cmdheight)
-  vim.cmd.redraw()
+  util.set_cmdheight(state.win_states, config.get().dynamic_window_resize, new_height + 1)
+
+  vim.api.nvim__redraw({ flush = true, cursor = true })
 end
 
 function DisplaySession:post_start()
@@ -149,12 +149,11 @@ function DisplaySession:close(done)
   end
 
   util.wipe_cmd_buffer()
-  util.set_cmdheight()
+  util.set_cmdheight(state.win_states, config.get().dynamic_window_resize)
   if state.active_window and vim.api.nvim_win_is_valid(state.active_window) then
     pcall(vim.api.nvim_set_current_win, state.active_window)
   end
-  util.restore_window_sizes(state.win_sizes)
-  util.restore_win_views(state.win_views)
+  util.restore_window_states(state.win_states)
 
   state.cleanup()
 
