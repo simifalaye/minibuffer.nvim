@@ -8,9 +8,9 @@ dl-deps:
 		echo "Cloning $$repo -> $$dest"; \
 		git clone --quiet "$$repo" "$$dest"; \
 	}; \
-	clone git@github.com:Bilal2453/luvit-meta.git .deps/luvit-meta & \
-	clone git@github.com:LuaCATS/busted.git .deps/busted & \
-	clone git@github.com:LuaCATS/luassert.git .deps/luassert & \
+	clone https://github.com/Bilal2453/luvit-meta.git .deps/luvit-meta & \
+	clone https://github.com/LuaCATS/busted.git .deps/busted & \
+	clone https://github.com/LuaCATS/luassert.git .deps/luassert & \
 	wait
 
 doc:
@@ -39,7 +39,7 @@ check-doc:
 		exit 1; \
 	fi
 
-test: dl-deps
+test:
 	@command -v busted >/dev/null 2>&1 || { \
 		echo "busted is not installed."; \
 		echo "Install it with: luarocks install --local busted"; \
@@ -47,7 +47,7 @@ test: dl-deps
 	}
 	busted .
 
-coverage-html: dl-deps
+coverage-html:
 	@command -v luacov >/dev/null 2>&1 || { \
 		echo "luacov is not installed."; \
 		echo "Install it with: luarocks install --local luacov"; \

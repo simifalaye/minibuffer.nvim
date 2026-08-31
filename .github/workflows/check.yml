@@ -1,0 +1,53 @@
+name: Check
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install vimcats
+        run: cargo install vimcats --features=cli --version 1.1.0
+
+      - name: Install StyLua
+        run: cargo install stylua --version 2.5.2
+
+      - name: Install Neovim
+        uses: rhysd/action-setup-vim@v1
+        with:
+          version: v0.12.4
+          neovim: true
+
+      - name: Set up Lua
+        uses: leafo/gh-actions-lua@v10
+        with:
+          luaVersion: "5.1"
+
+      - name: Set up LuaRocks
+        uses: leafo/gh-actions-luarocks@v4
+
+      - name: Install Lua dependencies
+        run: |
+          luarocks install luacheck
+          luarocks install busted
+          luarocks install luacov
+          luarocks install luacov-multiple
+
+      - name: Install mdformat
+        run: pipx install mdformat
+
+      - name: Run checks
+        run: make check
