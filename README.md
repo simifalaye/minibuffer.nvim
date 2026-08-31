@@ -2,7 +2,7 @@
 
 ![Lua](https://img.shields.io/badge/Made%20with%20Lua-blueviolet.svg?style=for-the-badge&logo=lua)
 
-A **highly experimental** general purpose interactive interface for neovim.
+An **experimental** general purpose interactive interface for neovim.
 
 https://github.com/user-attachments/assets/5d6dea18-9f13-460e-954c-413ff4f4d302
 
@@ -59,25 +59,6 @@ vim.ui.input = require("minibuffer.builtin.ui_input")
 
 vim.keymap.set("n", "<leader><CR>", function()
   minibuffer.resume(true)
-end)
-```
-
-- [mini.deps](https://github.com/nvim-mini/mini.deps)
-
-```lua
-MiniDeps.now(function()
-  MiniDeps.add({
-    source = "simifalaye/minibuffer.nvim",
-  })
-
-  local minibuffer = require("minibuffer")
-
-  vim.ui.select = require("minibuffer.builtin.ui_select")
-  vim.ui.input = require("minibuffer.builtin.ui_input")
-
-  vim.keymap.set("n", "<leader><CR>", function()
-    minibuffer.resume(true)
-  end)
 end)
 ```
 
@@ -215,31 +196,12 @@ Two integration types can be seen below:
 - Allowing each plugin to draw their own window but configuring the window settings to put it into the minibuffer container (as seen in the which-key.nvim, mini.pick and fzf.lua examples below)
 
 When possible, the first option is preferred.
-Some plugins don't expose their data fetching code through their public APIs an in such cases the second option can be used.
-This is done by using some specific markers in the window configuration to allow us to know which windows should be drawn in the minibuffer container.
-There are two markers supported in the window configuration:
+Some plugins don't expose their data fetching code through their public APIs and in such cases the second option can be used.
 
-- Setting the `use_minibuffer = true`
-- Setting `relative = "minibuffer"`
+In the case of the second option, I have provided some wrappers for the `setup` functions for each plugin which ensures we have the necessary options set for minibuffer to integrate with the plugin.
+Feel free to take a look at what options are used in the `lua/minibuffer/integrations` files.
 
-I recommend using both at the same time to ensure that none of the markers are overridden by the plugin's configuration setup.
-
-## Which-key.nvim
-
-<img width="2560" height="1440" alt="which-key nvim-integration" src="https://github.com/user-attachments/assets/993b040f-dcd9-4fb3-b861-1ad1f8fc2824" />
-
-```lua
--- Setup plugin with minibuffer window config
-require("which-key").setup({
-  win = { 
-    relative = "minibuffer",
-    use_minibuffer = true,
-  },
-})
-
--- Set highlights to match command window
-pcall(vim.api.nvim_set_hl, 0, "WhichKeyNormal", { link = "Normal" })
-```
+**NOTE**: When using `lazy.nvim`, use `config` instead of `opts` to setup your options
 
 ## FFF.nvim
 
@@ -258,80 +220,44 @@ vim.keymap.set("n", "<leader>/", function()
 end, { desc = "FFFGrep" })
 ```
 
+## Which-key.nvim
+
+<img width="2560" height="1440" alt="which-key nvim-integration" src="https://github.com/user-attachments/assets/993b040f-dcd9-4fb3-b861-1ad1f8fc2824" />
+
+```lua
+local my_opts = {}
+local ok, mb_wk = pcall(require, "minibuffer.integrations.which-key")
+if ok then
+  mb_wk(my_opts)
+else
+  require("which-key").setup(my_opts)
+end
+```
+
 ## mini-pick.nvim
 
 <img width="2560" height="1440" alt="mini pick-integration" src="https://github.com/user-attachments/assets/0fe78407-f95f-4223-85e7-bad07484a781" />
 
 ```lua
-local win_config = function()
-  local ret = {
-    border = { " ", " ", " ", " ", " ", " ", " ", " " },
-    width = vim.o.columns,
-    relative = "minibuffer",
-    use_minibuffer = true,
-  }
-  return ret
+local my_opts = {}
+local ok, mb_pick = pcall(require, "minibuffer.integrations.mini-pick")
+if ok then
+  mb_pick(my_opts)
+else
+  require("mini.pick").setup(my_opts)
 end
-
-local default_ui_select = vim.ui.select
-
--- Setup plugin with minibuffer window configuration
-pick.setup({
-  window = { config = win_config },
-})
-
--- NOTE: mini-pick's setup forces itself as the default `ui_select` function.
--- You will need to save the old one before and restore it after `setup()` if you wish to use the default minibuffer `ui_select`.
-vim.ui.select = default_ui_select
-
--- Set highlights to match command window
-pcall(vim.api.nvim_set_hl, 0, "MiniPickBorder", { link = "Normal" })
-pcall(vim.api.nvim_set_hl, 0, "MiniPickBorderBusy", { link = "Normal" })
-pcall(vim.api.nvim_set_hl, 0, "MiniPickNormal", { link = "Normal" })
-pcall(vim.api.nvim_set_hl, 0, "MiniPickHeader", { link = "Normal" })
-
--- Use mini.pick's internal resume function to resume the picker
-vim.keymap.set("n", "<leader><CR>", "<cmd>Pick resume<CR>", { desc = "Resume Picker" })
 ```
 
 ## fzf.lua
 
 ```lua
-require("fzf-lua").setup({
-  fzf_opts = {
-    ["--no-separator"] = true,
-  },
-  winopts = function()
-    return {
-      height = 0.35,
-      width = 1,
-      row = 0.35,
-      col = 0.50,
-      border = "none",
-      backdrop = 100,
-      relative = "minibuffer",
-      use_minibuffer = true,
-      winhl = true,
-    }
-  end,
-  hls = {
-    normal = "Normal",
-  },
-  -- Depending on your fzf-lua version/config structure,
-  -- this is best applied to the individual pickers:
-  files = {
-    previewer = false,
-  },
-  buffers = {
-    previewer = false,
-  },
-  grep = {
-    previewer = false,
-  },
-  live_grep = {
-    previewer = false,
-  },
-})
+local my_opts = {}
+local ok, mb_fzf = pcall(require, "minibuffer.integrations.fzf")
+if ok then
+  mb_fzf(my_opts)
+else
+  require("fzf-lua").setup(my_opts)
+end
 ```
 
 # Statusline Integration
