@@ -1,0 +1,14 @@
+{
+    "diagnostics.libraryFiles": "Disable",
+    "runtime.version": "LuaJIT",
+    "workspace.checkThirdParty": "Disable",
+    "workspace.ignoreDir": [
+        ".deps"
+    ],
+    "workspace.library": [
+        "$PWD/.deps/busted/library",
+        "$PWD/.deps/luassert/library",
+        "$PWD/.deps/luvit-meta/library",
+        "$VIMRUNTIME/lua"
+    ]
+}

@@ -33,7 +33,9 @@ end
 ---@alias minibuffer.core.SelectFilterFn fun(ctx:minibuffer.core.SelectContext): any[]
 ---@alias minibuffer.core.SelectFooterFn fun(ctx:minibuffer.core.SelectContext): any[]
 ---@alias minibuffer.core.SelectAcceptCallback fun(selection: {item:any, index: integer}[])
----@alias minibuffer.core.SelectStartCallback fun(session: minibuffer.core.SelectSession, keyset: minibuffer.util.Keyset)
+---@alias minibuffer.core.SelectStartCallback fun(
+---  session: minibuffer.core.SelectSession,
+---  keyset: minibuffer.util.Keyset)
 
 ---@class minibuffer.core.SelectSession : minibuffer.core.Session
 ---@field prompt string
@@ -50,6 +52,7 @@ end
 ---@field on_close minibuffer.core.CloseCallback|nil
 ---@field on_change minibuffer.core.ChangeCallback|nil
 ---@field _closed boolean
+---@field _resumable boolean
 ---@field _entry { buf:integer|nil, win:integer|nil }
 ---@field _display { buf:integer|nil, win:integer|nil }
 ---@field _input string
@@ -120,6 +123,7 @@ function SelectSession.new(opts)
     on_change = opts.on_change,
 
     _closed = true,
+    _resumable = opts.resumable == true,
     _entry = { buf = nil, win = nil },
     _display = { buf = nil, win = nil },
     _input = "",
@@ -134,11 +138,6 @@ function SelectSession.new(opts)
   assert(self.filter_fn ~= nil, "Must provide filter_fn")
   assert(self.format_fn ~= nil, "Must provide format_fn")
 
-  local resumable = opts.resumable == true
-  function self:resumable()
-    return resumable
-  end
-
   return self
 end
 
@@ -152,6 +151,12 @@ end
 ---@return boolean
 function SelectSession:overridable()
   return true
+end
+
+--- Returns whether this session can be resumed
+---@return boolean
+function SelectSession:resumable()
+  return self._resumable
 end
 
 --- Session setup
@@ -381,7 +386,6 @@ function SelectSession:post_start()
   if self._input ~= "" then
     pcall(vim.api.nvim_feedkeys, self._input, "t", false)
   end
-  vim.api.nvim_set_option_value("modified", false, { buf = self._entry.buf })
 
   vim.schedule(function()
     vim.api.nvim_buf_attach(self._entry.buf, false, {
@@ -493,6 +497,7 @@ function SelectSession:close(done)
 end
 
 --- Get the session context
+---@return minibuffer.core.SelectContext
 function SelectSession:get_ctx()
   return {
     items = self._items,

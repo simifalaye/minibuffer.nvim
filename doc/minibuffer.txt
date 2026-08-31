@@ -279,6 +279,13 @@ DisplaySession:overridable()                        *DisplaySession:overridable*
         (boolean)
 
 
+DisplaySession:resumable()                            *DisplaySession:resumable*
+     Returns whether this session can be resumed
+
+    Returns: ~
+        (boolean)
+
+
 DisplaySession:pre_start()                            *DisplaySession:pre_start*
      Session setup
 
@@ -370,6 +377,7 @@ minibuffer.core.InputSession : minibuffer.core.Session
         {on_close}           (minibuffer.core.CloseCallback|nil)
         {on_change}          (minibuffer.core.ChangeCallback|nil)
         {_closed}            (boolean)
+        {_resumable}         (boolean)
         {_entry}             ({buf:integer|nil,win:integer|nil})
         {_display}           ({buf:integer|nil,win:integer|nil})
         {_input}             (string)
@@ -423,6 +431,13 @@ InputSession:overridable()                            *InputSession:overridable*
         (boolean)
 
 
+InputSession:resumable()                                *InputSession:resumable*
+     Returns whether this session can be resumed
+
+    Returns: ~
+        (boolean)
+
+
 InputSession:pre_start()                                *InputSession:pre_start*
      Session setup
 
@@ -444,6 +459,9 @@ InputSession:close()                                        *InputSession:close*
 
 InputSession:get_ctx()                                    *InputSession:get_ctx*
      Get the session context
+
+    Returns: ~
+        (minibuffer.core.InputContext)
 
 
 InputSession:refresh_suggestions()            *InputSession:refresh_suggestions*
@@ -511,6 +529,13 @@ ScratchSession:type()                                      *ScratchSession:type*
 
 ScratchSession:overridable()                        *ScratchSession:overridable*
      Check if a session is overridable
+
+    Returns: ~
+        (boolean)
+
+
+ScratchSession:resumable()                            *ScratchSession:resumable*
+     Returns whether this session can be resumed
 
     Returns: ~
         (boolean)
@@ -593,11 +618,13 @@ minibuffer.core.SelectAcceptCallback      *minibuffer.core.SelectAcceptCallback*
 minibuffer.core.SelectStartCallback        *minibuffer.core.SelectStartCallback*
 
     Type: ~
-        fun(session:minibuffer.core.SelectSession,keyset:minibuffer.util.Keyset)
+        fun
 
 
                                                  *minibuffer.core.SelectSession*
 minibuffer.core.SelectSession : minibuffer.core.Session
+      session: minibuffer.core.SelectSession,
+      keyset: minibuffer.util.Keyset)
 
     Fields: ~
         {prompt}             (string)
@@ -614,6 +641,7 @@ minibuffer.core.SelectSession : minibuffer.core.Session
         {on_close}           (minibuffer.core.CloseCallback|nil)
         {on_change}          (minibuffer.core.ChangeCallback|nil)
         {_closed}            (boolean)
+        {_resumable}         (boolean)
         {_entry}             ({buf:integer|nil,win:integer|nil})
         {_display}           ({buf:integer|nil,win:integer|nil})
         {_input}             (string)
@@ -668,6 +696,13 @@ SelectSession:overridable()                          *SelectSession:overridable*
         (boolean)
 
 
+SelectSession:resumable()                              *SelectSession:resumable*
+     Returns whether this session can be resumed
+
+    Returns: ~
+        (boolean)
+
+
 SelectSession:pre_start()                              *SelectSession:pre_start*
      Session setup
 
@@ -689,6 +724,9 @@ SelectSession:close()                                      *SelectSession:close*
 
 SelectSession:get_ctx()                                  *SelectSession:get_ctx*
      Get the session context
+
+    Returns: ~
+        (minibuffer.core.SelectContext)
 
 
 SelectSession:refresh_results()                  *SelectSession:refresh_results*

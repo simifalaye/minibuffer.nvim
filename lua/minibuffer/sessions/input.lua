@@ -45,6 +45,7 @@ end
 ---@field on_close minibuffer.core.CloseCallback|nil
 ---@field on_change minibuffer.core.ChangeCallback|nil
 ---@field _closed boolean
+---@field _resumable boolean
 ---@field _entry { buf:integer|nil, win:integer|nil }
 ---@field _display { buf:integer|nil, win:integer|nil }
 ---@field _input string
@@ -112,6 +113,7 @@ function InputSession.new(opts)
     on_change = opts.on_change,
 
     _closed = true,
+    _resumable = opts.resumable == true,
     _entry = { buf = nil, win = nil },
     _display = { buf = nil, win = nil },
     _input = opts.initial_text or "",
@@ -123,11 +125,6 @@ function InputSession.new(opts)
   }, InputSession)
   assert(self.fetch_fn ~= nil, "Must provide fetch_fn")
   assert(self.format_fn ~= nil, "Must provide format_fn")
-
-  local resumable = opts.resumable == true
-  function self:resumable()
-    return resumable
-  end
 
   return self
 end
@@ -144,6 +141,12 @@ function InputSession:overridable()
   return true
 end
 
+--- Returns whether this session can be resumed
+---@return boolean
+function InputSession:resumable()
+  return self._resumable
+end
+
 --- Session setup
 function InputSession:pre_start()
   local win = util.get_cmd_win()
@@ -158,7 +161,7 @@ function InputSession:pre_start()
 
   -- Setup display buffer and window
   local display_height = math.max(1, math.min(self.max_height, #self._items))
-  self._display.buf = vim.api.nvim_create_buf(false, false)
+  self._display.buf = vim.api.nvim_create_buf(false, true)
   if self._display.buf == 0 then
     error("Failed to create display minibuffer")
   end
@@ -353,7 +356,6 @@ function InputSession:post_start()
   if self._input ~= "" then
     pcall(vim.api.nvim_feedkeys, self._input, "t", false)
   end
-  vim.api.nvim_set_option_value("modified", false, { buf = self._entry.buf })
 
   vim.schedule(function()
     vim.api.nvim_buf_attach(self._entry.buf, false, {
@@ -464,6 +466,7 @@ function InputSession:close(done)
 end
 
 --- Get the session context
+---@return minibuffer.core.InputContext
 function InputSession:get_ctx()
   return {
     items = self._items,

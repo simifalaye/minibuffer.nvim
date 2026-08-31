@@ -102,6 +102,7 @@ end)
 # Configuration
 
 This plugin can be configured by using `vim.g.minibuffer` (preferably set before the plugin loads).
+
 ```lua
 -- Default configuration
 vim.g.minibuffer = {
@@ -209,6 +210,7 @@ vim.keymap.set("n", "<leader>hh", ":h ", { desc = "Help" })
 # Integrations with existing plugins
 
 Two integration types can be seen below:
+
 - Using the backend of a plugin with the minibuffer frontend APIs (as seen in the fff.nvim example below)
 - Allowing each plugin to draw their own window but configuring the window settings to put it into the minibuffer container (as seen in the which-key.nvim, mini.pick and fzf.lua examples below)
 
@@ -216,6 +218,7 @@ When possible, the first option is preferred.
 Some plugins don't expose their data fetching code through their public APIs an in such cases the second option can be used.
 This is done by using some specific markers in the window configuration to allow us to know which windows should be drawn in the minibuffer container.
 There are two markers supported in the window configuration:
+
 - Setting the `use_minibuffer = true`
 - Setting `relative = "minibuffer"`
 
@@ -338,6 +341,7 @@ This is because you are focussed on another command window (which doesn't draw a
 Minibuffer keeps track of the last window that was in use before it opened `get_active_window()`.
 You can use this function to determine whether to draw the active/inactive statusline for a window.
 I have this code setup in my statusline config to determine whether to draw the inactive statusline (return `true` means draw the inactive statusline for this window):
+
 ```lua
 local winid = vim.api.nvim_get_current_win()
 local curwin = tonumber(vim.g.actual_curwin)

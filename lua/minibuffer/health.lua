@@ -61,7 +61,7 @@ function M.check()
   user_config = user_config or {}
 
   local validate = require("minibuffer.config.validate")
-  local valid, err = validate.validate(config)
+  local valid, err = validate.validate(user_config)
   if not valid then
     vim.health.error("configuration is invalid", nil, err)
     return

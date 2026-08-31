@@ -21,8 +21,6 @@
 ---@field cancel fun(self: minibuffer.core.Session)
 --- Close session
 ---@field close fun(self: minibuffer.core.Session, done: fun()|nil)
-local Session = {}
-Session.__index = Session
 
 ---@alias minibuffer.core.ItemCompareFn fun(old:any, new:any): boolean
 ---@alias minibuffer.core.FormatFn fun(item:any): minibuffer.util.HighlightLine

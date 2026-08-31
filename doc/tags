@@ -5,6 +5,7 @@ DisplaySession:overridable	minibuffer.txt	/*DisplaySession:overridable*
 DisplaySession:post_start	minibuffer.txt	/*DisplaySession:post_start*
 DisplaySession:pre_start	minibuffer.txt	/*DisplaySession:pre_start*
 DisplaySession:render	minibuffer.txt	/*DisplaySession:render*
+DisplaySession:resumable	minibuffer.txt	/*DisplaySession:resumable*
 DisplaySession:type	minibuffer.txt	/*DisplaySession:type*
 DisplaySession:update_lines	minibuffer.txt	/*DisplaySession:update_lines*
 InputSession.new	minibuffer.txt	/*InputSession.new*
@@ -18,6 +19,7 @@ InputSession:post_start	minibuffer.txt	/*InputSession:post_start*
 InputSession:pre_start	minibuffer.txt	/*InputSession:pre_start*
 InputSession:refresh_suggestions	minibuffer.txt	/*InputSession:refresh_suggestions*
 InputSession:render	minibuffer.txt	/*InputSession:render*
+InputSession:resumable	minibuffer.txt	/*InputSession:resumable*
 InputSession:set_input	minibuffer.txt	/*InputSession:set_input*
 InputSession:submit	minibuffer.txt	/*InputSession:submit*
 InputSession:type	minibuffer.txt	/*InputSession:type*
@@ -29,6 +31,7 @@ ScratchSession:overridable	minibuffer.txt	/*ScratchSession:overridable*
 ScratchSession:post_start	minibuffer.txt	/*ScratchSession:post_start*
 ScratchSession:pre_start	minibuffer.txt	/*ScratchSession:pre_start*
 ScratchSession:render	minibuffer.txt	/*ScratchSession:render*
+ScratchSession:resumable	minibuffer.txt	/*ScratchSession:resumable*
 ScratchSession:set_win_config	minibuffer.txt	/*ScratchSession:set_win_config*
 ScratchSession:type	minibuffer.txt	/*ScratchSession:type*
 SelectSession.new	minibuffer.txt	/*SelectSession.new*
@@ -44,6 +47,7 @@ SelectSession:post_start	minibuffer.txt	/*SelectSession:post_start*
 SelectSession:pre_start	minibuffer.txt	/*SelectSession:pre_start*
 SelectSession:refresh_results	minibuffer.txt	/*SelectSession:refresh_results*
 SelectSession:render	minibuffer.txt	/*SelectSession:render*
+SelectSession:resumable	minibuffer.txt	/*SelectSession:resumable*
 SelectSession:toggle_selection	minibuffer.txt	/*SelectSession:toggle_selection*
 SelectSession:toggle_selection_all	minibuffer.txt	/*SelectSession:toggle_selection_all*
 SelectSession:type	minibuffer.txt	/*SelectSession:type*

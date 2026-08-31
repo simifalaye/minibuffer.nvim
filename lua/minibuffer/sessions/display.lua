@@ -45,10 +45,6 @@ function DisplaySession.new(opts)
     _timer = nil,
   }, DisplaySession)
 
-  function self:resumable()
-    return false
-  end
-
   return self
 end
 
@@ -62,6 +58,12 @@ end
 ---@return boolean
 function DisplaySession:overridable()
   return true
+end
+
+--- Returns whether this session can be resumed
+---@return boolean
+function DisplaySession:resumable()
+  return false
 end
 
 --- Session setup

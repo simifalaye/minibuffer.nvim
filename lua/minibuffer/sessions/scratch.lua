@@ -38,10 +38,6 @@ function ScratchSession.new(opts)
     _win = -1,
   }, ScratchSession)
 
-  function self:resumable()
-    return false
-  end
-
   return self
 end
 
@@ -55,6 +51,12 @@ end
 ---@return boolean
 function ScratchSession:overridable()
   return true
+end
+
+--- Returns whether this session can be resumed
+---@return boolean
+function ScratchSession:resumable()
+  return false
 end
 
 --- Session setup

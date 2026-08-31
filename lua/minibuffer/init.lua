@@ -193,7 +193,7 @@ function minibuffer.initialize()
         return
       end
     end
-    return state.default_nvim_win_set_config(win, opts)
+    state.default_nvim_win_set_config(win, opts)
   end
   ---@diagnostic disable-next-line: duplicate-set-field
   vim.api.nvim_win_close = function(win, force)
@@ -204,7 +204,7 @@ function minibuffer.initialize()
         s:close()
       end
     end
-    return state.default_nvim_win_close(win, force)
+    state.default_nvim_win_close(win, force)
   end
 
   state.initialized = true

@@ -1,7 +1,9 @@
 local ext = require("vim._core.ui2")
 if not ext then
   error(
-    "Failed to load vim._core.ui2. Make sure you are running neovim 0.12+ with ui2 enabled (require'vim._core.ui2'.enable({}))"
+    "Failed to load vim._core.ui2."
+      .. "Make sure you are running neovim 0.12+ "
+      .. "with ui2 enabled (require'vim._core.ui2'.enable({}))"
   )
 end
 
@@ -330,11 +332,11 @@ function M.set_cmdheight(states, resize_windows, height)
     vim.api.nvim_win_set_config(win, { hide = false, height = height })
   end
 
-  if vim.o.cmdheight ~= height then
+  if vim.api.nvim_get_option_value("cmdheight", { scope = "global" }) ~= height then
     -- Avoid moving the cursor with 'splitkeep' = "screen", and altering the user
     -- configured value with noautocmd.
     vim._with({ noautocmd = true, o = { splitkeep = "screen" } }, function()
-      vim.o.cmdheight = height
+      vim.api.nvim_set_option_value("cmdheight", height, { scope = "global" })
     end)
     ext.msg.set_pos()
   end
