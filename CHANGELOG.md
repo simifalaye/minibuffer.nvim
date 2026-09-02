@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.0](https://github.com/simifalaye/minibuffer.nvim/compare/v1.0.0...v1.1.0) (2026-09-02)
+
+
+### Features
+
+* Improve statusline integration and add lualine support ([#16](https://github.com/simifalaye/minibuffer.nvim/issues/16)) ([cb9e74e](https://github.com/simifalaye/minibuffer.nvim/commit/cb9e74e46454b036867ffe2b1cd8b06603845d6c))
+
 ## 1.0.0 (2026-08-31)
 
 
