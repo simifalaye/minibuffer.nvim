@@ -115,7 +115,6 @@ describe("minibuffer", function()
     end)
 
     it("returns false when the plugin is not ready", function()
-      util.ready:revert()
       helper.stub_method(util, "ready", function()
         return false
       end)
@@ -560,7 +559,6 @@ describe("minibuffer", function()
       state.initialized = false
 
       local scratch = package.loaded["minibuffer.sessions.scratch"]
-      scratch.new:revert()
       helper.stub_method(scratch, "new", function()
         return {
           overridable = function()
@@ -572,7 +570,6 @@ describe("minibuffer", function()
         }
       end)
 
-      util.ready:revert()
       helper.stub_method(util, "ready", function()
         return false
       end)

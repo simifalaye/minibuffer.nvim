@@ -39,15 +39,12 @@ describe("minibuffer.sessions.display", function()
     helper.stub_method(util, "get_cmd_buf", function()
       return buf
     end)
-
     helper.stub_method(util, "get_cmd_win", function()
       return win
     end)
-
     helper.stub_method(util, "get_window_states", function()
       return { [1] = { height = 22, buf = 1, view = {} } }
     end)
-
     helper.stub_method(util, "wipe_cmd_buffer")
     helper.stub_method(util, "write_highlighted_lines")
     helper.stub_method(util, "set_cmdheight")
@@ -55,6 +52,7 @@ describe("minibuffer.sessions.display", function()
 
     helper.stub_method(state, "cleanup")
 
+    helper.stub_method(vim_api, "nvim_win_set_var")
     helper.stub_method(vim_api, "nvim_win_get_height", function()
       return 10
     end)
@@ -147,7 +145,6 @@ describe("minibuffer.sessions.display", function()
 
   describe(":pre_start", function()
     it("does nothing when the command buffer is unavailable", function()
-      util.get_cmd_buf:revert()
       helper.stub_method(util, "get_cmd_buf", function()
         return nil
       end)
@@ -162,7 +159,6 @@ describe("minibuffer.sessions.display", function()
     end)
 
     it("does nothing when the command window is unavailable", function()
-      util.get_cmd_win:revert()
       helper.stub_method(util, "get_cmd_win", function()
         return nil
       end)
@@ -176,22 +172,25 @@ describe("minibuffer.sessions.display", function()
       assert.stub(util.wipe_cmd_buffer).called_at_most(0)
     end)
 
-    it("opens the session and saves window state", function()
-      local states = { [1] = { height = 50, buf = 2, view = {} } }
+    it(
+      "opens the session and saves window state, properly setting minibuffer win var",
+      function()
+        local states = { [1] = { height = 50, buf = 2, view = {} } }
 
-      util.get_window_states:revert()
-      helper.stub_method(util, "get_window_states", function()
-        return states
-      end)
+        helper.stub_method(util, "get_window_states", function()
+          return states
+        end)
 
-      local session = DisplaySession.new()
+        local session = DisplaySession.new()
 
-      session:pre_start()
+        session:pre_start()
 
-      assert.is_false(session._closed)
-      assert.equal(states, state.win_states)
-      assert.stub(util.wipe_cmd_buffer).called_at_least(1)
-    end)
+        assert.is_false(session._closed)
+        assert.equal(states, state.win_states)
+        assert.stub(util.wipe_cmd_buffer).called_at_least(1)
+        assert.stub(vim_api.nvim_win_set_var).called_with(win, "minibuffer", true)
+      end
+    )
 
     it("starts a timer when timeout is positive", function()
       local session = DisplaySession.new({
@@ -247,7 +246,6 @@ describe("minibuffer.sessions.display", function()
       local session = DisplaySession.new()
       session._closed = false
 
-      util.get_cmd_buf:revert()
       helper.stub_method(util, "get_cmd_buf", function()
         return nil
       end)
@@ -261,7 +259,6 @@ describe("minibuffer.sessions.display", function()
       local session = DisplaySession.new()
       session._closed = false
 
-      util.get_cmd_win:revert()
       helper.stub_method(util, "get_cmd_win", function()
         return nil
       end)
@@ -384,7 +381,6 @@ describe("minibuffer.sessions.display", function()
       local session = DisplaySession.new()
       session._closed = false
 
-      util.get_cmd_buf:revert()
       helper.stub_method(util, "get_cmd_buf", function()
         return nil
       end)
@@ -511,7 +507,6 @@ describe("minibuffer.sessions.display", function()
       local session = DisplaySession.new()
       session._closed = false
 
-      util.get_cmd_win:revert()
       helper.stub_method(util, "get_cmd_win", function()
         return nil
       end)
@@ -529,6 +524,7 @@ describe("minibuffer.sessions.display", function()
 
       session:close()
 
+      assert.stub(vim_api.nvim_win_set_var).called_with(win, "minibuffer", nil)
       assert.stub(state.cleanup).called_at_least(1)
     end)
   end)

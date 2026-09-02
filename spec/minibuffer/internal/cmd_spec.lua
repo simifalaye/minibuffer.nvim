@@ -146,7 +146,6 @@ describe("minibuffer.internal.cmd", function()
     end)
 
     it("does nothing when the command window is unavailable", function()
-      util.get_cmd_win:revert()
       helper.stub_method(util, "get_cmd_win", function()
         return nil
       end)
@@ -195,7 +194,6 @@ describe("minibuffer.internal.cmd", function()
     it("saves window state", function()
       local states = { [1] = { height = 50, buf = 2, view = {} } }
 
-      util.get_window_states:revert()
       helper.stub_method(util, "get_window_states", function()
         return states
       end)
@@ -249,7 +247,6 @@ describe("minibuffer.internal.cmd", function()
     end)
 
     it("uses command definitions for command completion", function()
-      vim_api.nvim_get_commands:revert()
       helper.stub_method(vim_api, "nvim_get_commands", function()
         return {
           write = {
@@ -286,7 +283,6 @@ describe("minibuffer.internal.cmd", function()
     end)
 
     it("does not overwrite an existing info field", function()
-      vim_api.nvim_get_commands:revert()
       helper.stub_method(vim_api, "nvim_get_commands", function()
         return {
           write = {
@@ -352,12 +348,10 @@ describe("minibuffer.internal.cmd", function()
     end)
 
     it("does not enrich non-command completion", function()
-      vim_fn.getcmdtype:revert()
       helper.stub_method(vim_fn, "getcmdtype", function()
         return "/"
       end)
 
-      vim_api.nvim_get_commands:revert()
       helper.stub_method(vim_api, "nvim_get_commands", function()
         return {
           write = {
@@ -379,12 +373,10 @@ describe("minibuffer.internal.cmd", function()
     end)
 
     it("does not enrich command arguments", function()
-      vim_fn.getcmdline:revert()
       helper.stub_method(vim_fn, "getcmdline", function()
         return "write "
       end)
 
-      vim_api.nvim_get_commands:revert()
       helper.stub_method(vim_api, "nvim_get_commands", function()
         return {
           write = {
@@ -406,7 +398,6 @@ describe("minibuffer.internal.cmd", function()
     end)
 
     it("does not enrich unknown commands", function()
-      vim_api.nvim_get_commands:revert()
       helper.stub_method(vim_api, "nvim_get_commands", function()
         return {}
       end)
@@ -424,7 +415,6 @@ describe("minibuffer.internal.cmd", function()
     end)
 
     it("does not enrich an empty word", function()
-      vim_api.nvim_get_commands:revert()
       helper.stub_method(vim_api, "nvim_get_commands", function()
         return {
           write = {
@@ -485,7 +475,6 @@ describe("minibuffer.internal.cmd", function()
     end)
 
     it("does not set an extmark when the buffer is invalid", function()
-      vim_api.nvim_buf_is_valid:revert()
       helper.stub_method(vim_api, "nvim_buf_is_valid", function()
         return false
       end)
@@ -543,7 +532,6 @@ describe("minibuffer.internal.cmd", function()
     it("uses the current window height when dynamic height is disabled", function()
       config.cmd.dynamic_height = false
 
-      vim_api.nvim_win_get_height:revert()
       helper.stub_method(vim_api, "nvim_win_get_height", function()
         return 5
       end)
@@ -629,7 +617,6 @@ describe("minibuffer.internal.cmd", function()
     end)
 
     it("does nothing when the display window is invalid", function()
-      vim_api.nvim_win_is_valid:revert()
       helper.stub_method(vim_api, "nvim_win_is_valid", function()
         return false
       end)
@@ -643,7 +630,6 @@ describe("minibuffer.internal.cmd", function()
     end)
 
     it("does nothing when the display buffer is invalid", function()
-      vim_api.nvim_buf_is_valid:revert()
       helper.stub_method(vim_api, "nvim_buf_is_valid", function()
         return false
       end)
@@ -800,7 +786,6 @@ describe("minibuffer.internal.cmd", function()
 
       local callback = vim_keymap.set.calls[1].refs[3]
 
-      vim_fn.wildmenumode:revert()
       helper.stub_method(vim_fn, "wildmenumode", function()
         return 0
       end)
@@ -815,7 +800,6 @@ describe("minibuffer.internal.cmd", function()
       local feedkeys = spy.new(function() end)
       vim_api.nvim_feedkeys = feedkeys
 
-      vim_fn.wildmenumode:revert()
       helper.stub_method(vim_fn, "wildmenumode", function()
         return 1
       end)
@@ -833,7 +817,6 @@ describe("minibuffer.internal.cmd", function()
       local feedkeys = spy.new(function() end)
       vim_api.nvim_feedkeys = feedkeys
 
-      vim_fn.wildmenumode:revert()
       helper.stub_method(vim_fn, "wildmenumode", function()
         return 1
       end)
@@ -852,7 +835,6 @@ describe("minibuffer.internal.cmd", function()
 
       vim_api.nvim_feedkeys = spy.new(function() end)
 
-      vim_fn.wildmenumode:revert()
       helper.stub_method(vim_fn, "wildmenumode", function()
         return 1
       end)
@@ -877,12 +859,10 @@ describe("minibuffer.internal.cmd", function()
 
       vim_api.nvim_feedkeys = spy.new(function() end)
 
-      vim_fn.wildmenumode:revert()
       helper.stub_method(vim_fn, "wildmenumode", function()
         return 1
       end)
 
-      vim_fn.mode:revert()
       helper.stub_method(vim_fn, "mode", function()
         return "n"
       end)

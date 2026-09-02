@@ -76,6 +76,7 @@ function DisplaySession:pre_start()
 
   self._closed = false
   state.win_states = util.get_window_states()
+  pcall(vim.api.nvim_win_set_var, win, "minibuffer", true)
 
   if self.timeout and self.timeout > 0 then
     local _timer = vim.uv.new_timer()
@@ -172,6 +173,7 @@ function DisplaySession:close(done)
   if not win then
     return
   end
+  pcall(vim.api.nvim_win_set_var, win, "minibuffer", nil)
 
   util.wipe_cmd_buffer()
   util.set_cmdheight(state.win_states, config.dynamic_window_resize)

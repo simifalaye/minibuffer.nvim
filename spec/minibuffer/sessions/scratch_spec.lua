@@ -56,6 +56,7 @@ describe("minibuffer.sessions.scratch", function()
 
     helper.stub_method(state, "cleanup")
 
+    helper.stub_method(vim_api, "nvim_win_set_var")
     helper.stub_method(vim_api, "nvim_win_is_valid", function(win)
       return win ~= nil and win ~= -1
     end)
@@ -161,7 +162,6 @@ describe("minibuffer.sessions.scratch", function()
 
   describe(":pre_start", function()
     it("does nothing when the command window is unavailable", function()
-      util.get_cmd_win:revert()
       helper.stub_method(util, "get_cmd_win", function()
         return nil
       end)
@@ -210,7 +210,6 @@ describe("minibuffer.sessions.scratch", function()
       local session = new_session()
       session._closed = false
 
-      util.get_cmd_win:revert()
       helper.stub_method(util, "get_cmd_win", function()
         return nil
       end)
@@ -222,33 +221,36 @@ describe("minibuffer.sessions.scratch", function()
       assert.stub(vim_api.nvim__redraw).called_at_most(0)
     end)
 
-    it("creates the scratch window when it does not exist", function()
-      local session = new_session({
-        buf = scratch_buf,
-        enter = true,
-        win_config = {
+    it(
+      "creates the scratch window when it does not exist, properly setting minibuffer win var",
+      function()
+        local session = new_session({
+          buf = scratch_buf,
+          enter = true,
+          win_config = {
+            height = 7,
+            border = "none",
+          },
+        })
+        session._closed = false
+
+        session:render()
+
+        assert.equal(scratch_win, session._win)
+        assert.stub(state.default_nvim_open_win).called_with(scratch_buf, true, {
           height = 7,
           border = "none",
-        },
-      })
-      session._closed = false
-
-      session:render()
-
-      assert.equal(scratch_win, session._win)
-
-      assert.stub(state.default_nvim_open_win).called_with(scratch_buf, true, {
-        height = 7,
-        border = "none",
-        anchor = "SW",
-        relative = "editor",
-        row = 24,
-        col = 0,
-        width = 80,
-        win = cmd_win,
-        zindex = 51,
-      })
-    end)
+          anchor = "SW",
+          relative = "editor",
+          row = 24,
+          col = 0,
+          width = 80,
+          win = cmd_win,
+          zindex = 51,
+        })
+        assert.stub(vim_api.nvim_win_set_var).called_with(scratch_win, "minibuffer", true)
+      end
+    )
 
     it("uses the configured enter value when opening the window", function()
       local session = new_session({
@@ -533,7 +535,6 @@ describe("minibuffer.sessions.scratch", function()
       local session = new_session()
       session._closed = false
 
-      util.get_cmd_win:revert()
       helper.stub_method(util, "get_cmd_win", function()
         return nil
       end)
@@ -637,7 +638,6 @@ describe("minibuffer.sessions.scratch", function()
       session._closed = false
       session._win = scratch_win
 
-      util.get_cmd_win:revert()
       helper.stub_method(util, "get_cmd_win", function()
         return nil
       end)

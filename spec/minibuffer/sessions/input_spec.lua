@@ -76,6 +76,7 @@ describe("minibuffer.sessions.input", function()
       end
     end)
 
+    helper.stub_method(vim_api, "nvim_win_set_var")
     helper.stub_method(vim_api, "nvim_win_is_valid", function(win)
       return win ~= nil
     end)
@@ -298,19 +299,26 @@ describe("minibuffer.sessions.input", function()
       assert.same(states, state.win_states)
     end)
 
-    it("creates the display buffer and window", function()
-      local session = new_session({
-        max_height = 10,
-      })
+    it(
+      "creates the display buffer and window, properly setting minibuffer win var",
+      function()
+        local session = new_session({
+          max_height = 10,
+        })
 
-      session._items = { "one", "two", "three" }
-      session:pre_start()
+        session._items = { "one", "two", "three" }
+        session:pre_start()
 
-      assert.equal(display_buf, session._display.buf)
-      assert.equal(display_win, session._display.win)
+        assert.equal(display_buf, session._display.buf)
+        assert.equal(display_win, session._display.win)
 
-      assert.stub(vim_api.nvim_open_win).called_with(display_buf, false, match.is_table())
-    end)
+        assert
+          .stub(vim_api.nvim_open_win)
+          .called_with(display_buf, false, match.is_table())
+        assert.stub(vim_api.nvim_win_set_var).called_with(display_win, "minibuffer", true)
+        assert.stub(vim_api.nvim_win_set_var).called_with(entry_win, "minibuffer", true)
+      end
+    )
 
     it("limits the initial display height to max_height", function()
       local session = new_session({
