@@ -94,8 +94,8 @@ function ScratchSession:render()
       win = cmd_win,
       zindex = vim.api.nvim_win_get_config(cmd_win).zindex + 1,
     })
-
     self._win = state.default_nvim_open_win(self.buf, self.enter, cfg)
+    pcall(vim.api.nvim_win_set_var, self._win, "minibuffer", true)
 
     local augroup = vim.api.nvim_create_augroup(
       "minibuffer-win-" .. tostring(self._win),

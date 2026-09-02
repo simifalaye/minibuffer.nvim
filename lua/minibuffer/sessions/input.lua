@@ -193,6 +193,7 @@ function InputSession:pre_start()
       { scope = "local" }
     )
   end)
+  pcall(vim.api.nvim_win_set_var, self._display.win, "minibuffer", true)
 
   -- Setup entry buffer and window
   self._entry.buf = vim.api.nvim_create_buf(false, true)
@@ -217,6 +218,7 @@ function InputSession:pre_start()
   })
   vim.wo[self._entry.win].wrap = false
   vim.wo[self._entry.win].winhighlight = "Normal:MinibufferPrompt"
+  pcall(vim.api.nvim_win_set_var, self._entry.win, "minibuffer", true)
 end
 
 --- Render session to the screen

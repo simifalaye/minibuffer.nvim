@@ -225,12 +225,12 @@ end, { desc = "FFFGrep" })
 <img width="2560" height="1440" alt="which-key nvim-integration" src="https://github.com/user-attachments/assets/993b040f-dcd9-4fb3-b861-1ad1f8fc2824" />
 
 ```lua
-local my_opts = {}
+local opts = {}
 local ok, mb_wk = pcall(require, "minibuffer.integrations.which-key")
 if ok then
-  mb_wk(my_opts)
+  mb_wk(opts)
 else
-  require("which-key").setup(my_opts)
+  require("which-key").setup(opts)
 end
 ```
 
@@ -239,55 +239,72 @@ end
 <img width="2560" height="1440" alt="mini pick-integration" src="https://github.com/user-attachments/assets/0fe78407-f95f-4223-85e7-bad07484a781" />
 
 ```lua
-local my_opts = {}
+local opts = {}
 local ok, mb_pick = pcall(require, "minibuffer.integrations.mini-pick")
 if ok then
-  mb_pick(my_opts)
+  mb_pick(opts)
 else
-  require("mini.pick").setup(my_opts)
+  require("mini.pick").setup(opts)
 end
 ```
 
 ## fzf.lua
 
 ```lua
-local my_opts = {}
+local opts = {}
 local ok, mb_fzf = pcall(require, "minibuffer.integrations.fzf")
 if ok then
-  mb_fzf(my_opts)
+  mb_fzf(opts)
 else
-  require("fzf-lua").setup(my_opts)
+  require("fzf-lua").setup(opts)
 end
 ```
 
-# Statusline Integration
+## lualine
 
-You may notice that when the minibuffer is open in an interactive session (such as select or input), the 'inactive' statusline is shown.
-This is because you are focussed on another command window (which doesn't draw another statusline) and so you need to tell your statusline code which window to draw the active statusline for.
-Minibuffer keeps track of the last window that was in use before it opened `get_active_window()`.
-You can use this function to determine whether to draw the active/inactive statusline for a window.
-I have this code setup in my statusline config to determine whether to draw the inactive statusline (return `true` means draw the inactive statusline for this window):
+This allows the statusline to display the active statusline for the correct window when the minibuffer is opened:
 
 ```lua
-local winid = vim.api.nvim_get_current_win()
-local curwin = tonumber(vim.g.actual_curwin)
--- If this is the active window then don't display inactive statusline
-if winid == curwin then
-  return false
+local opts = {}
+local ok, mb_lualine = pcall(require, "minibuffer.integrations.lualine")
+if ok then
+  mb_lualine(opts)
+else
+  require("lualine").setup(opts)
 end
--- If the current window is a floating, then look at the previously accessed window
-if vim.api.nvim_win_get_config(winid).relative ~= "" then
-  local prev = vim.fn.win_getid(vim.fn.winnr("#"))
-  if prev == curwin then
-    return false
+```
+
+# Custom Statusline Integration
+
+You may notice that when the minibuffer is open in an interactive session (such as select or input), the 'inactive' statusline is shown.
+This is because you are focussed on the minibuffer window (which doesn't draw another statusline) and so you need to tell your statusline code which window to draw the active statusline for.
+Here's a simple function you can use to determine whether to draw the active or inactive statusline for a given window:
+
+```lua
+local function win_is_active()
+  local ok, mb = pcall(require, "minibuffer")
+  local winid = vim.api.nvim_get_current_win()
+  local curwin = (ok and mb.get_active_window()) or tonumber(vim.g.actual_curwin)
+  return winid == curwin
+end
+```
+
+You can use the function like this in your custom statusline:
+
+```lua
+local function statusline()
+  if win_is_active() then
+    -- Display your active statusline
+    return "%f %m %= %l:%c"
+  else
+    -- Display your inactive statusline
+    return "%f %m"
   end
 end
--- If the minibuffer is active, determine whether this was the last active window
-local mb_ok, mb = pcall(require, "minibuffer")
-if mb_ok and mb.get_active_window() == winid then
-  return false
-end
-return true
+
+_G.my_statusline = statusline
+
+vim.go.statusline = "%!v:lua.my_statusline()"
 ```
 
 # Developer Notes
