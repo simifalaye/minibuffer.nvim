@@ -81,8 +81,12 @@ local function enrich_items(items)
     local word = item[1]
     if word and word ~= "" and (item[4] == nil or item[4] == "") then
       local command = s.commands[word]
-      if command and command.definition then
-        item[4] = command.definition
+      if command then
+        if command.definition and command.definition ~= "" then
+          item[4] = command.definition
+        elseif command.desc and command.desc ~= "" then
+          item[4] = command.desc
+        end
       end
     end
   end
