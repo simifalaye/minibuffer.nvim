@@ -20,6 +20,7 @@ local M = {}
 ---@type minibuffer.internal.cmd.State
 local s = {
   -- internal
+  is_pending = false,
   is_active = false,
   buf = nil,
   win = nil,
@@ -251,52 +252,67 @@ function M.enable()
     return
   end
 
-  if s.is_active then
+  if s.is_pending or s.is_active then
     return
   end
 
+  s.is_pending = true
+  state.win_states = util.get_window_states()
   s.commands = vim.api.nvim_get_commands({ builtin = false }) -- TODO: use true when implemented
 
-  if not create_window() then
-    return
-  end
+  vim.schedule(function()
+    if not s.is_pending then
+      return
+    end
+    s.is_pending = false
 
-  s.is_active = true
+    if vim.fn.mode() ~= "c" then
+      return
+    end
 
-  state.win_states = util.get_window_states()
+    if not create_window() then
+      return
+    end
 
-  vim.ui_attach(state.ns, {
-    ext_popupmenu = true,
-  }, on_event)
+    s.is_active = true
 
-  if config.cmd.autotrigger then
-    -- Accept the current completion and immediately trigger the next one.
-    vim.keymap.set("c", "<C-y>", function()
-      if vim.fn.wildmenumode() == 0 then
-        return "<C-y>"
-      end
+    vim.ui_attach(state.ns, {
+      ext_popupmenu = true,
+    }, on_event)
 
-      vim.api.nvim_feedkeys(vim.keycode("<C-y>"), "n", false)
-
-      vim.schedule(function()
-        if s.is_active and vim.fn.mode() == "c" then
-          vim.fn.wildtrigger()
+    if config.cmd.autotrigger then
+      -- Start completion immediately
+      vim.fn.wildtrigger()
+      -- Setup keymaps and autocmds for autotrigger support
+      vim.keymap.set("c", "<C-y>", function()
+        if vim.fn.wildmenumode() == 0 then
+          return "<C-y>"
         end
-      end)
 
-      return ""
-    end, {
-      expr = true,
-      nowait = true,
-      silent = true,
-      noremap = true,
-    })
-  end
+        -- Accept the current completion and immediately trigger the next one.
+        vim.api.nvim_feedkeys(vim.keycode("<C-y>"), "n", false)
+        vim.schedule(function()
+          if s.is_active and vim.fn.mode() == "c" then
+            vim.fn.wildtrigger()
+          end
+        end)
+
+        return ""
+      end, {
+        expr = true,
+        nowait = true,
+        silent = true,
+        noremap = true,
+      })
+    end
+  end)
 end
 
 ---Disable the custom command-line completion popup.
 ---@return nil
 function M.disable()
+  s.is_pending = false
+
   if not s.is_active then
     return
   end
@@ -325,6 +341,12 @@ function M.disable()
   s.selected = -1
   s.mark = nil
   s.cmdheight = 0
+end
+
+---Check whether the custom completion popup is is pending.
+---@return boolean
+function M.is_pending()
+  return s.is_pending
 end
 
 ---Check whether the custom completion popup is is active.

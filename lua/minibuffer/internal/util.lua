@@ -317,6 +317,7 @@ end
 ---@param resize_windows boolean
 ---@param height integer|nil If nil the reset to ext.cmdheight
 function M.set_cmdheight(states, resize_windows, height)
+  height = height or ext.cmdheight
   local win = M.get_cmd_win()
   if not win or not vim.api.nvim_win_is_valid(win) then
     return
@@ -325,7 +326,6 @@ function M.set_cmdheight(states, resize_windows, height)
     return
   end
 
-  height = height or ext.cmdheight
   if height == 0 then
     vim.api.nvim_win_set_config(win, { hide = true, height = 1 })
   elseif vim.api.nvim_win_get_height(win) ~= height then
