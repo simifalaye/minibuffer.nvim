@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.2.0](https://github.com/simifalaye/minibuffer.nvim/compare/v1.1.0...v1.2.0) (2026-10-05)
+
+
+### Features
+
+* support 0.13 command description ([b7fbfa0](https://github.com/simifalaye/minibuffer.nvim/commit/b7fbfa0a0861411c5db3bd71ecbe10b9f509e970))
+
+
+### Bug Fixes
+
+* handle cmd mappings properly when cmd is enabled ([5aaf67f](https://github.com/simifalaye/minibuffer.nvim/commit/5aaf67f28580b0936c8a213947c855abd1e07c91))
+
 ## [1.1.0](https://github.com/simifalaye/minibuffer.nvim/compare/v1.0.0...v1.1.0) (2026-09-02)
 
 
