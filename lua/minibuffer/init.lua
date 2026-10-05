@@ -55,8 +55,14 @@ local function start_session(session, force)
     session:post_start()
   end
 
+  local cmd = require("minibuffer.internal.cmd")
   if state.session then
     state.session:close(function()
+      start()
+    end)
+  elseif cmd.is_active() then
+    cmd.disable()
+    vim.schedule(function()
       start()
     end)
   else
@@ -116,6 +122,12 @@ function minibuffer.initialize()
     pattern = { ":", "/", "\\?" },
     desc = "Minibuffer cmd pum",
     callback = function()
+      local execution_state = vim.fn.state()
+      if string.find(execution_state, "m") then -- Triggered by a mapping
+        cmd.disable()
+        return
+      end
+
       -- Make sure to close any non-cmd sessions
       if state.session then
         state.session:close(function()
