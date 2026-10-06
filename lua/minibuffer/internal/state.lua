@@ -39,6 +39,7 @@ function M.cleanup()
   M.active_window = nil
   M.win_sizes = {}
   M.win_views = {}
+  M.win_states = {}
 end
 
 return M
