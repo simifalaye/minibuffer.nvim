@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.1](https://github.com/simifalaye/minibuffer.nvim/compare/v1.2.0...v1.2.1) (2026-10-05)
+
+
+### Bug Fixes
+
+* Improve timing for minibuffer cmd window ([#21](https://github.com/simifalaye/minibuffer.nvim/issues/21)) ([3de7cff](https://github.com/simifalaye/minibuffer.nvim/commit/3de7cff038b59b5ddb3239c2625fa2963b68c51c))
+
 ## [1.2.0](https://github.com/simifalaye/minibuffer.nvim/compare/v1.1.0...v1.2.0) (2026-10-05)
 
 
