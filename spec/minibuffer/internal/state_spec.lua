@@ -2,6 +2,27 @@ local helper = require("helper")
 local state = require("minibuffer.internal.state")
 local assert = helper.init()
 
+---@param partial table
+---@return minibuffer.core.Session
+local function make_session(partial)
+  return vim.tbl_deep_extend("force", {
+    type = function(_)
+      return ""
+    end,
+    overridable = function(_)
+      return false
+    end,
+    resumable = function(_)
+      return false
+    end,
+    pre_start = function(_) end,
+    render = function(_) end,
+    post_start = function(_) end,
+    cancel = function(_) end,
+    close = function(_, _) end,
+  }, partial)
+end
+
 describe("minibuffer.internal.state", function()
   before_each(function()
     state.session = nil
@@ -12,6 +33,7 @@ describe("minibuffer.internal.state", function()
 
   describe("cleanup", function()
     it("resets win_states so stale views are not restored later", function()
+      ---@diagnostic disable-next-line: missing-fields
       state.win_states = { [1] = { height = 10, buf = 1, view = { lnum = 5 } } }
 
       state.cleanup()
@@ -20,9 +42,11 @@ describe("minibuffer.internal.state", function()
     end)
 
     it("clears the session and pending render", function()
-      state.session = { resumable = function()
-        return false
-      end }
+      state.session = make_session({
+        resumable = function()
+          return false
+        end,
+      })
       state.pending_render = true
 
       state.cleanup()
@@ -32,9 +56,11 @@ describe("minibuffer.internal.state", function()
     end)
 
     it("keeps a resumable session as the previous session", function()
-      local session = { resumable = function()
-        return true
-      end }
+      local session = make_session({
+        resumable = function()
+          return true
+        end,
+      })
       state.session = session
 
       state.cleanup()
