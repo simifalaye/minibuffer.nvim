@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.2](https://github.com/simifalaye/minibuffer.nvim/compare/v1.2.1...v1.2.2) (2026-10-13)
+
+
+### Bug Fixes
+
+* handle fast event context for builtin file pickers ([#27](https://github.com/simifalaye/minibuffer.nvim/issues/27)) ([3249573](https://github.com/simifalaye/minibuffer.nvim/commit/324957389a04002adfb8156f5cb70983317f9fbb))
+* reset win_states in state.cleanup to prevent stale view restore ([#23](https://github.com/simifalaye/minibuffer.nvim/issues/23)) ([034e500](https://github.com/simifalaye/minibuffer.nvim/commit/034e5007264fb684c2dd2ae2d2b36392fcd0bd7b))
+
 ## [1.2.1](https://github.com/simifalaye/minibuffer.nvim/compare/v1.2.0...v1.2.1) (2026-10-05)
 
 
