@@ -53,12 +53,16 @@ local function load_files(opts, cb)
   vim.system(cmd, proc_opts, function(res)
     loading = false
     if res.code ~= 0 then
-      cb(nil, res.stderr)
+      vim.schedule(function()
+        cb(nil, res.stderr)
+      end)
       return
     end
 
     loaded_cwd = opts.cwd
-    cb(vim.split(res.stdout, "\n", { trimempty = true }))
+    vim.schedule(function()
+      cb(vim.split(res.stdout, "\n", { trimempty = true }))
+    end)
   end)
 end
 

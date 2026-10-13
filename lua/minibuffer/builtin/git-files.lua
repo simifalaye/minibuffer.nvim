@@ -61,14 +61,18 @@ return function(opts)
         text = true,
       }, function(res)
         if res.code ~= 0 then
-          cb(nil, res.stderr)
+          vim.schedule(function()
+            cb(nil, res.stderr)
+          end)
           return
         end
 
         local items = vim.split(res.stdout or "", "\n", {
           trimempty = true,
         })
-        cb(items)
+        vim.schedule(function()
+          cb(items)
+        end)
       end)
     end,
     format_fn = format_fn,
