@@ -30,7 +30,7 @@ local function format_fn(item)
   local prefix = string.format("%s:%d:%d: ", item.file, item.line, item.col)
 
   return {
-    { text = prefix, hl = "Comment" },
+    { text = prefix, hl = "MinibufferPath" },
     { text = item.text, hl = "Normal" },
   }
 end

@@ -17,7 +17,7 @@ local function format_fn(item)
   local dir = item:sub(1, #item - #name)
 
   return {
-    { text = dir, hl = "Comment" },
+    { text = dir, hl = "MinibufferPath" },
     { text = name, hl = "Normal" },
   }
 end

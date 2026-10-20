@@ -84,13 +84,16 @@ function minibuffer.initialize()
   -- Setup highlights
   local function setup_hl()
     local defs = {
+      MinibufferNormal = { link = "Normal" },
       MinibufferPrompt = { link = "Question" },
       MinibufferSelection = { link = "Visual" },
       MinibufferMultiSelected = { link = "Search" },
       MinibufferSuggestion = { link = "Comment" },
       MinibufferLoading = { link = "Comment" },
+      MinibufferPath = { link = "Comment" },
     }
     for k, v in pairs(defs) do
+      v.default = true
       pcall(vim.api.nvim_set_hl, 0, k, v)
     end
   end
