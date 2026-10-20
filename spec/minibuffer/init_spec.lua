@@ -345,19 +345,22 @@ describe("minibuffer", function()
 
       assert
         .stub(vim_api.nvim_set_hl)
-        .called_with(0, "MinibufferPrompt", { link = "Question" })
+        .called_with(0, "MinibufferNormal", { link = "Normal", default = true })
       assert
         .stub(vim_api.nvim_set_hl)
-        .called_with(0, "MinibufferSelection", { link = "Visual" })
+        .called_with(0, "MinibufferPrompt", { link = "Question", default = true })
       assert
         .stub(vim_api.nvim_set_hl)
-        .called_with(0, "MinibufferMultiSelected", { link = "Search" })
+        .called_with(0, "MinibufferSelection", { link = "Visual", default = true })
       assert
         .stub(vim_api.nvim_set_hl)
-        .called_with(0, "MinibufferSuggestion", { link = "Comment" })
+        .called_with(0, "MinibufferMultiSelected", { link = "Search", default = true })
       assert
         .stub(vim_api.nvim_set_hl)
-        .called_with(0, "MinibufferLoading", { link = "Comment" })
+        .called_with(0, "MinibufferSuggestion", { link = "Comment", default = true })
+      assert
+        .stub(vim_api.nvim_set_hl)
+        .called_with(0, "MinibufferLoading", { link = "Comment", default = true })
     end)
 
     it("registers the ColorScheme autocmd", function()

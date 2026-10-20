@@ -181,7 +181,10 @@ describe("minibuffer.internal.cmd", function()
       assert.is_true(options.modifiable)
       assert.equal("hide", options.bufhidden)
       assert.equal("nofile", options.buftype)
-      assert.equal("Normal:Normal", options.winhighlight)
+      assert.equal(
+        "Normal:MinibufferNormal,NormalFloat:MinibufferNormal,EndOfBuffer:MinibufferNormal",
+        options.winhighlight
+      )
     end)
 
     it("captures the popup menu event callback", function()
