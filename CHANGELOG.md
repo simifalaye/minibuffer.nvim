@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.3.0](https://github.com/simifalaye/minibuffer.nvim/compare/v1.2.2...v1.3.0) (2026-10-20)
+
+
+### Features
+
+* highlight groups, set as default ([#28](https://github.com/simifalaye/minibuffer.nvim/issues/28)) ([5c5355a](https://github.com/simifalaye/minibuffer.nvim/commit/5c5355a8c3956ab959d5af8667dc0a22efbfc61a))
+
+
+### Bug Fixes
+
+* Give option to show unloaded buffers in buffer picker ([#29](https://github.com/simifalaye/minibuffer.nvim/issues/29)) ([b1c9657](https://github.com/simifalaye/minibuffer.nvim/commit/b1c9657143c55df8844678c2157e5ece00b09fe3))
+
 ## [1.2.2](https://github.com/simifalaye/minibuffer.nvim/compare/v1.2.1...v1.2.2) (2026-10-13)
 
 
