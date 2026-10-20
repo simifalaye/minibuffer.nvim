@@ -11,11 +11,12 @@ local function update_preview_win(win, buf)
 end
 
 -- Collect listed & loaded buffers (excluding special/unlisted)
-local function gather_buffers()
+---@param opts minibuffer.builtin.BuffersOpts
+local function gather_buffers(opts)
   local bufs = vim.fn.getbufinfo({ buflisted = 1 })
   local items = {}
   for _, info in ipairs(bufs) do
-    if info.loaded == 1 then
+    if opts.show_unloaded or info.loaded == 1 then
       local path = info.name
       local name = path ~= "" and vim.fn.fnamemodify(path, ":t") or "[No Name]"
       items[#items + 1] = {
@@ -90,11 +91,21 @@ local function get_replacement_buf(current)
   return vim.api.nvim_create_buf(false, true)
 end
 
-return function()
+---@class minibuffer.builtin.BuffersOpts
+---@field show_unloaded boolean|nil Whether to show unloaded buffers in list
+
+---@param opts minibuffer.builtin.BuffersOpts
+return function(opts)
   require("minibuffer.internal.guard").check()
 
+  ---@type minibuffer.builtin.BuffersOpts
+  local default_opts = {
+    show_unloaded = true,
+  }
+  opts = vim.tbl_deep_extend("force", default_opts, opts or {})
+
   local active_win
-  local buffers = gather_buffers()
+  local buffers = gather_buffers(opts)
   local minibuffer = require("minibuffer")
   local prev_buf = vim.api.nvim_get_current_buf()
 
