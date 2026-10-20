@@ -239,7 +239,11 @@ local function create_window()
     vim.api.nvim_set_option_value("modifiable", true, { scope = "local" })
     vim.api.nvim_set_option_value("bufhidden", "hide", { scope = "local" })
     vim.api.nvim_set_option_value("buftype", "nofile", { scope = "local" })
-    vim.api.nvim_set_option_value("winhighlight", "Normal:Normal", { scope = "local" })
+    vim.api.nvim_set_option_value(
+      "winhighlight",
+      "Normal:MinibufferNormal,NormalFloat:MinibufferNormal,EndOfBuffer:MinibufferNormal",
+      { scope = "local" }
+    )
   end)
 
   return true

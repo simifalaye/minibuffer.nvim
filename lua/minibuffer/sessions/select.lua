@@ -201,7 +201,13 @@ function SelectSession:pre_start()
     vim.api.nvim_set_option_value("buftype", "nofile", { scope = "local" })
     vim.api.nvim_set_option_value(
       "winhighlight",
-      "NormalFloat:Normal,FloatBorder:Normal,FloatFooter:Normal",
+      table.concat({
+        "Normal:MinibufferNormal",
+        "NormalFloat:MinibufferNormal",
+        "FloatBorder:MinibufferNormal",
+        "FloatFooter:MinibufferNormal",
+        "EndOfBuffer:MinibufferNormal",
+      }, ","),
       { scope = "local" }
     )
   end)
