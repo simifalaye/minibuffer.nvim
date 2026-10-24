@@ -466,7 +466,7 @@ describe("minibuffer.internal.cmd", function()
 
       assert
         .stub(vim_api.nvim_buf_set_extmark)
-        .called_with(buf, state.ns, 2, 0, { line_hl_group = "MinibufferSelection" })
+        .called_with(buf, state.ns, 1, 0, { line_hl_group = "MinibufferSelection" })
     end)
 
     it("does not set an extmark for a negative selection", function()
@@ -532,23 +532,29 @@ describe("minibuffer.internal.cmd", function()
       cmd.enable()
     end)
 
-    it("uses the current window height when dynamic height is disabled", function()
-      config.cmd.dynamic_height = false
+    it(
+      "uses the current window height when dynamic height is disabled with autotrigger",
+      function()
+        config.cmd.dynamic_height = false
+        config.cmd.autotrigger = true
 
-      helper.stub_method(vim_api, "nvim_win_get_height", function()
-        return 5
-      end)
+        helper.stub_method(vim_api, "nvim_win_get_height", function()
+          return 5
+        end)
 
-      ui_callback("popupmenu_show", {
-        { "one" },
-        { "two" },
-      }, 0)
+        ui_callback("popupmenu_show", {
+          { "one" },
+          { "two" },
+          { "three" },
+          { "four" },
+        }, 0)
 
-      assert.stub(util.set_win_height).called_with(win, 5)
-      assert
-        .stub(util.set_cmdheight)
-        .called_with(state.win_states, config.dynamic_window_resize, 6)
-    end)
+        assert.stub(util.set_win_height).called_with(win, 5)
+        assert
+          .stub(util.set_cmdheight)
+          .called_with(state.win_states, config.dynamic_window_resize, 6)
+      end
+    )
 
     it("shrinks to the number of items with dynamic height", function()
       config.cmd.dynamic_height = true

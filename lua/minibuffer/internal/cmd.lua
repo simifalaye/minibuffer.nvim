@@ -14,6 +14,7 @@ local M = {}
 ---@field mark integer? Selection extmark.
 ---@field items minibuffer.internal.cmd.PopupItems
 ---@field selected integer Zero-based selected completion index, or -1 when nothing is selected.
+---@field first_visible integer Zero-based index of the first visible item.
 ---@field commands table<string, vim.api.keyset.command_info> Command info
 ---@field cmdheight integer The value that cmdheight should currently be set to
 
@@ -27,6 +28,7 @@ local s = {
   mark = nil,
   items = {},
   selected = -1,
+  first_visible = 0,
   commands = {},
   cmdheight = vim.o.cmdheight,
 }
@@ -49,7 +51,8 @@ local function set_height(height)
     return
   end
 
-  if config.cmd.autotrigger and not config.cmd.dynamic_height then
+  local dynamic_height = config.cmd.dynamic_height == true
+  if config.cmd.autotrigger and not dynamic_height then
     local prev_display_height = vim.api.nvim_win_get_height(s.win)
     height = math.max(prev_display_height, height)
   end
@@ -85,7 +88,9 @@ local function enrich_items(items)
       if command then
         if command.definition and command.definition ~= "" then
           item[4] = command.definition
+        ---@diagnostic disable-next-line: undefined-field
         elseif command.desc and command.desc ~= "" then
+          ---@diagnostic disable-next-line: undefined-field
           item[4] = command.desc
         end
       end
@@ -133,6 +138,9 @@ local function render()
 
   local count = #s.items
   if count == 0 then
+    s.first_visible = 0
+    s.mark = nil
+
     vim.api.nvim_buf_set_lines(s.buf, 0, -1, false, {})
     vim.api.nvim_buf_clear_namespace(s.buf, state.ns, 0, -1)
 
@@ -141,26 +149,42 @@ local function render()
   end
 
   local max_height = config.cmd.max_height or 15
-  local dynamic_height = config.cmd.dynamic_height == true
   local height = math.min(max_height, count)
-  if not dynamic_height then
-    height = math.max(vim.api.nvim_win_get_height(s.win), height)
-  end
 
   set_height(height)
 
-  local lines = {}
-  for _, item in ipairs(s.items) do
-    lines[#lines + 1] = format_item(item)
+  -- Keep the selected item within the visible range
+  if s.selected >= 0 and s.selected < count then
+    if s.selected < s.first_visible then
+      s.first_visible = s.selected
+    elseif s.selected >= s.first_visible + height then
+      s.first_visible = s.selected - height + 1
+    end
   end
+
+  -- Clamp the scroll position when the list changes
+  s.first_visible = math.max(0, math.min(s.first_visible, math.max(0, count - height)))
+
+  local last_visible = math.min(s.first_visible + height, count)
+  local lines = {}
+
+  -- first_visible and selected are zero-based, lua arrays are one-based
+  for i = s.first_visible + 1, last_visible do
+    lines[#lines + 1] = format_item(s.items[i])
+  end
+
   util.write_highlighted_lines(s.buf, state.ns, lines)
 
-  if s.selected >= 0 and s.selected < count then
-    pcall(
-      vim.api.nvim_buf_set_extmark,
+  -- Recreate the selection highlight at its row in the visible slice
+  if s.mark then
+    pcall(vim.api.nvim_buf_del_extmark, s.buf, state.ns, s.mark)
+    s.mark = nil
+  end
+  if s.selected >= s.first_visible and s.selected < last_visible then
+    s.mark = vim.api.nvim_buf_set_extmark(
       s.buf,
       state.ns,
-      s.selected,
+      s.selected - s.first_visible,
       0,
       { line_hl_group = "MinibufferSelection" }
     )
@@ -183,27 +207,19 @@ local function on_event(event, ...)
 
     s.items = enrich_items(items)
     s.selected = selected
+    s.first_visible = 0
     render()
   elseif event == "popupmenu_select" then
     s.selected = ...
-    if s.selected < 0 or not valid_buf() then
+
+    if not valid_buf() then
       return
     end
-
-    if s.mark then
-      vim.api.nvim_buf_del_extmark(s.buf, state.ns, s.mark)
-    end
-
-    s.mark = vim.api.nvim_buf_set_extmark(
-      s.buf,
-      state.ns,
-      s.selected,
-      0,
-      { line_hl_group = "MinibufferSelection" }
-    )
+    render()
   elseif event == "popupmenu_hide" then
     s.items = {}
     s.selected = -1
+    s.first_visible = 0
     render()
   end
 end
@@ -287,13 +303,14 @@ function M.enable()
     if config.cmd.autotrigger then
       -- Start completion immediately
       vim.fn.wildtrigger()
+
       -- Setup keymaps and autocmds for autotrigger support
       vim.keymap.set("c", "<C-y>", function()
         if vim.fn.wildmenumode() == 0 then
           return "<C-y>"
         end
 
-        -- Accept the current completion and immediately trigger the next one.
+        -- Accept the current completion and immediately trigger the next one
         vim.api.nvim_feedkeys(vim.keycode("<C-y>"), "n", false)
         vim.schedule(function()
           if s.is_active and vim.fn.mode() == "c" then
@@ -343,17 +360,17 @@ function M.disable()
   s.mark = nil
   s.items = {}
   s.selected = -1
-  s.mark = nil
+  s.first_visible = 0
   s.cmdheight = 0
 end
 
----Check whether the custom completion popup is is pending.
+---Check whether the custom completion popup is pending
 ---@return boolean
 function M.is_pending()
   return s.is_pending
 end
 
----Check whether the custom completion popup is is active.
+---Check whether the custom completion popup is active
 ---@return boolean
 function M.is_active()
   return s.is_active
