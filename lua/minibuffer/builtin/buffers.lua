@@ -188,8 +188,18 @@ return function(opts)
         local selected = sess:get_selected()
         if selected then
           if selected and vim.api.nvim_buf_is_valid(selected.bufnr) then
+            local modified =
+              vim.api.nvim_get_option_value("modified", { buf = selected.bufnr })
+            if modified then
+              vim.notify(
+                ("Can't delete modified buf %s."):format(selected.bufnr),
+                vim.log.levels.WARN
+              )
+              return
+            end
+
             update_preview_win(active_win, get_replacement_buf(selected.bufnr))
-            vim.api.nvim_buf_delete(selected.bufnr, {})
+            vim.api.nvim_buf_delete(selected.bufnr, { force = true })
 
             -- Remove buffer from list
             local new_buffer_list = {}
