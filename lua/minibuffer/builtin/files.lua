@@ -10,6 +10,7 @@ local debounce = util.make_debounced(50)
 local all_files = {} ---@type string[]
 local loading = false
 local loaded_cwd = nil
+local fetch_cb = nil
 
 -- Format each file path: directory part in Comment, filename normal
 local function format_fn(item)
@@ -31,14 +32,22 @@ local function filter_fn(ctx)
   return vim.fn.matchfuzzy(ctx.items, ctx.input)
 end
 
+-- Call the stored fetch cb if provided
+local function invoke_fetch_cb(files, err)
+  if not fetch_cb then
+    return
+  end
+  fetch_cb(files, err)
+end
+
 -- Load all files once using rg
-local function load_files(opts, cb)
+local function load_files(opts)
   if loading then
     return
   end
 
   if #all_files > 0 and loaded_cwd == opts.cwd then
-    cb(all_files)
+    invoke_fetch_cb(all_files)
     return
   end
 
@@ -54,14 +63,14 @@ local function load_files(opts, cb)
     loading = false
     if res.code ~= 0 then
       vim.schedule(function()
-        cb(nil, res.stderr)
+        invoke_fetch_cb(nil, res.stderr)
       end)
       return
     end
 
     loaded_cwd = opts.cwd
     vim.schedule(function()
-      cb(vim.split(res.stdout, "\n", { trimempty = true }))
+      invoke_fetch_cb(vim.split(res.stdout, "\n", { trimempty = true }))
     end)
   end)
 end
@@ -99,8 +108,9 @@ return function(opts)
     dynamic_height = false,
     max_height = 15,
     fetch_fn = function(_, cb)
+      fetch_cb = cb
       debounce(function()
-        load_files(opts, cb)
+        load_files(opts)
       end)
     end,
     format_fn = format_fn,
