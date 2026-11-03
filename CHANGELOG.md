@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.4.0](https://github.com/simifalaye/minibuffer.nvim/compare/v1.3.0...v1.4.0) (2026-11-03)
+
+
+### Features
+
+* support cmd suggestion scrolling ([#33](https://github.com/simifalaye/minibuffer.nvim/issues/33)) ([6b4ea37](https://github.com/simifalaye/minibuffer.nvim/commit/6b4ea37d63eea8c3d4dacb8b0b8e26d12d75034c))
+
+
+### Bug Fixes
+
+* Handle deleting modified buffers in buffer picker ([#31](https://github.com/simifalaye/minibuffer.nvim/issues/31)) ([170a951](https://github.com/simifalaye/minibuffer.nvim/commit/170a95183e3126a52a2cbfbd1bd3ad8d5477e22b))
+* resolve issue [#34](https://github.com/simifalaye/minibuffer.nvim/issues/34) ([#35](https://github.com/simifalaye/minibuffer.nvim/issues/35)) ([be39ce0](https://github.com/simifalaye/minibuffer.nvim/commit/be39ce04d13df732524dfc873800c79092d485da))
+
 ## [1.3.0](https://github.com/simifalaye/minibuffer.nvim/compare/v1.2.2...v1.3.0) (2026-10-20)
 
 
